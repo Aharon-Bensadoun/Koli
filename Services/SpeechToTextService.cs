@@ -461,30 +461,8 @@ public sealed class SpeechToTextService : IAsyncDisposable
         return $"Chunk size: {audioLength} bytes (WAV header added); language={languageSent}; mode={_settings.LanguageMode}; prompt={promptInfo}";
     }
 
-    private void WriteWavHeader(Stream stream, int dataLength)
-    {
-        // SampleRate: 16000, Channels: 1, Bits: 16
-        int sampleRate = 16000;
-        short channels = 1;
-        short bitsPerSample = 16;
-        int byteRate = sampleRate * channels * bitsPerSample / 8;
-        short blockAlign = (short)(channels * bitsPerSample / 8);
-
-        using var writer = new BinaryWriter(stream, Encoding.UTF8, leaveOpen: true);
-        writer.Write(Encoding.ASCII.GetBytes("RIFF"));
-        writer.Write(dataLength + 36); // File size - 8
-        writer.Write(Encoding.ASCII.GetBytes("WAVE"));
-        writer.Write(Encoding.ASCII.GetBytes("fmt "));
-        writer.Write(16); // Subchunk1Size (16 for PCM)
-        writer.Write((short)1); // AudioFormat (1 for PCM)
-        writer.Write(channels);
-        writer.Write(sampleRate);
-        writer.Write(byteRate);
-        writer.Write(blockAlign);
-        writer.Write(bitsPerSample);
-        writer.Write(Encoding.ASCII.GetBytes("data"));
-        writer.Write(dataLength);
-    }
+    private static void WriteWavHeader(Stream stream, int dataLength)
+        => WavWriter.WriteHeader(stream, dataLength);
 
     /// <summary>
     /// Transcribes a single audio chunk and returns the raw text (no event emission).

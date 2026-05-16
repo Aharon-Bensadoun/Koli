@@ -263,6 +263,14 @@ public partial class MainForm : Form
     private const int MaxHistoryEntries = 100;
     private string _historyPath = string.Empty;
 
+    // Failed-recording recovery: when the transcription API call fails (network
+    // outage, invalid key, 4xx/5xx, empty response…) the captured PCM is saved
+    // to disk so the user can listen back and retry from the history view.
+    private PendingAudioStore _pendingAudioStore = null!;
+    private AudioPlaybackService _audioPlayback = null!;
+    private Guid? _currentlyPlayingId;
+    private bool _isRetryingPending;
+
     // Embedded debug + meeting hosts
     private Panel _debugHost = null!;
     private Panel _meetingHost = null!;
@@ -381,9 +389,17 @@ public partial class MainForm : Form
         _settings = settings;
         _secureStore = secureStore;
         _configPath = configPath;
-        _historyPath = Path.Combine(
-            Path.GetDirectoryName(configPath) ?? AppDomain.CurrentDomain.BaseDirectory,
-            "history.json");
+        var configDir = Path.GetDirectoryName(configPath) ?? AppDomain.CurrentDomain.BaseDirectory;
+        _historyPath = Path.Combine(configDir, "history.json");
+
+        // Pending failed-transcription recordings: WAV files in Config/PendingAudio
+        // with a JSON index next to history.json so the list survives restarts.
+        var pendingFolder = Path.Combine(configDir, "PendingAudio");
+        var pendingIndex = Path.Combine(configDir, "pending-audio.json");
+        _pendingAudioStore = new PendingAudioStore(pendingFolder, pendingIndex);
+        _audioPlayback = new AudioPlaybackService();
+        _audioPlayback.PlaybackEnded += OnPlaybackEnded;
+
         LoadHistory();
         InitializeComponent();
         InitializeSystemTray();
@@ -958,7 +974,11 @@ public partial class MainForm : Form
         _historyList.SuspendLayout();
         _historyList.Controls.Clear();
 
-        if (_history.Count == 0)
+        var pending = _pendingAudioStore?.List() ?? Array.Empty<PendingAudioEntry>();
+        var hasPending = pending.Count > 0;
+        var hasHistory = _history.Count > 0;
+
+        if (!hasPending && !hasHistory)
         {
             _historyEmpty.Visible = true;
             _historyList.Visible = false;
@@ -967,6 +987,14 @@ public partial class MainForm : Form
         {
             _historyEmpty.Visible = false;
             _historyList.Visible = true;
+
+            // Pending (failed-transcription) recordings always sit at the top so
+            // the user notices them and can replay / retry.
+            foreach (var entry in pending)
+            {
+                _historyList.Controls.Add(BuildPendingAudioCard(entry));
+            }
+
             foreach (var entry in _history)
             {
                 _historyList.Controls.Add(BuildHistoryCard(entry));
@@ -1053,6 +1081,394 @@ public partial class MainForm : Form
         card.Controls.Add(lang);
         card.Controls.Add(preview);
         return card;
+    }
+
+    /// <summary>
+    /// Renders a card for a failed recording. The user can play it back, retry the
+    /// transcription with the current settings, or delete it. The whole card is
+    /// re-rendered (no in-place state) so the Play/Stop label is refreshed by
+    /// calling <see cref="RefreshHistoryPanel"/> after each action.
+    /// </summary>
+    private Panel BuildPendingAudioCard(PendingAudioEntry entry)
+    {
+        // Slightly taller than a normal history card to fit the action row.
+        var card = new Panel
+        {
+            Width = _historyList.ClientSize.Width - 24,
+            Height = 116,
+            Margin = new Padding(0, 0, 0, 8),
+            BackColor = Color.Transparent,
+            Tag = entry
+        };
+        card.Paint += (s, e) =>
+        {
+            var g = e.Graphics;
+            g.SmoothingMode = SmoothingMode.AntiAlias;
+            var rect = new Rectangle(0, 0, card.Width - 1, card.Height - 1);
+            using (var path = GetRoundedRectPath(rect, 10))
+            using (var brush = new SolidBrush(FluentColors.CardBg))
+            {
+                g.FillPath(brush, path);
+            }
+            // Amber border so the user immediately sees these are "needs attention".
+            using (var path = GetRoundedRectPath(rect, 10))
+            using (var pen = new Pen(Color.FromArgb(120, FluentColors.Warning), 1.2f))
+            {
+                g.DrawPath(pen, path);
+            }
+            // Vertical accent on the left edge.
+            using (var brush = new SolidBrush(FluentColors.Warning))
+            {
+                g.FillRectangle(brush, 0, 6, 3, card.Height - 12);
+            }
+        };
+
+        var pendingBadge = new Label
+        {
+            Text = "PENDING",
+            Font = FluentFonts.SectionLabel,
+            ForeColor = FluentColors.Warning,
+            BackColor = Color.Transparent,
+            AutoSize = true,
+            Location = new Point(14, 10)
+        };
+
+        var when = new Label
+        {
+            Text = entry.CapturedAt.ToLocalTime().ToString("HH:mm"),
+            Font = FluentFonts.CaptionSmall,
+            ForeColor = FluentColors.TextSecondary,
+            BackColor = Color.Transparent,
+            AutoSize = true,
+            Location = new Point(82, 13)
+        };
+
+        var meta = new Label
+        {
+            Text = $"{FormatPendingDuration(entry.Duration)} · {(entry.Language ?? "").ToUpperInvariant()}",
+            Font = FluentFonts.CaptionSmall,
+            ForeColor = FluentColors.TextTertiary,
+            BackColor = Color.Transparent,
+            AutoSize = true,
+            Location = new Point(130, 13)
+        };
+
+        var errorPreview = new Label
+        {
+            Text = string.IsNullOrWhiteSpace(entry.LastError)
+                ? "Transcription failed. Play the audio back or retry when you're ready."
+                : (entry.LastError!.Length > 180 ? entry.LastError[..180] + "…" : entry.LastError),
+            Font = FluentFonts.Body,
+            ForeColor = string.IsNullOrWhiteSpace(entry.LastError)
+                ? FluentColors.TextSecondary
+                : FluentColors.TextPrimary,
+            BackColor = Color.Transparent,
+            AutoSize = false,
+            Size = new Size(card.Width - 28, 38),
+            Location = new Point(14, 34)
+        };
+
+        // Action row at the bottom: Play/Stop, Retry, Delete.
+        var isPlayingThis = _currentlyPlayingId == entry.Id && _audioPlayback.IsPlaying;
+        var playBtn = BuildPendingActionButton(
+            glyph: isPlayingThis ? "\uE71A" : "\uE768",
+            tooltip: isPlayingThis ? "Stop playback" : "Play recording",
+            location: new Point(14, card.Height - 36));
+        playBtn.Click += (s, e) => OnPendingPlayClicked(entry);
+
+        var retryBtn = BuildPendingActionButton(
+            glyph: "\uE72C",
+            tooltip: "Retry transcription",
+            location: new Point(50, card.Height - 36));
+        retryBtn.Click += async (s, e) => await RetryPendingTranscriptionAsync(entry);
+
+        var deleteBtn = BuildPendingActionButton(
+            glyph: "\uE74D",
+            tooltip: "Delete recording",
+            location: new Point(86, card.Height - 36));
+        deleteBtn.ForeColor = FluentColors.Error;
+        deleteBtn.Click += (s, e) => OnPendingDeleteClicked(entry);
+
+        card.Controls.Add(pendingBadge);
+        card.Controls.Add(when);
+        card.Controls.Add(meta);
+        card.Controls.Add(errorPreview);
+        card.Controls.Add(playBtn);
+        card.Controls.Add(retryBtn);
+        card.Controls.Add(deleteBtn);
+        return card;
+    }
+
+    private static Button BuildPendingActionButton(string glyph, string tooltip, Point location)
+    {
+        var btn = new Button
+        {
+            Text = string.Empty,
+            Size = new Size(30, 28),
+            Location = location,
+            FlatStyle = FlatStyle.Flat,
+            ForeColor = FluentColors.TextPrimary,
+            BackColor = FluentColors.SurfaceElevated,
+            Cursor = Cursors.Hand,
+            TabStop = false,
+            Padding = Padding.Empty,
+            Margin = Padding.Empty,
+            AutoSize = false
+        };
+        btn.FlatAppearance.BorderSize = 0;
+        btn.FlatAppearance.MouseOverBackColor = FluentColors.SurfaceHover;
+        btn.FlatAppearance.MouseDownBackColor = FluentColors.NavItemActive;
+        ApplyRoundedCorners(btn, 6);
+        MakeIconButton(btn, glyph, FluentFonts.Icons);
+
+        var tip = new ToolTip();
+        tip.SetToolTip(btn, tooltip);
+        return btn;
+    }
+
+    private static string FormatPendingDuration(TimeSpan duration)
+    {
+        if (duration.TotalHours >= 1)
+            return $"{(int)duration.TotalHours}h{duration.Minutes:00}m{duration.Seconds:00}s";
+        if (duration.TotalMinutes >= 1)
+            return $"{(int)duration.TotalMinutes}m{duration.Seconds:00}s";
+        return $"{duration.TotalSeconds:0.0}s";
+    }
+
+    private void OnPendingPlayClicked(PendingAudioEntry entry)
+    {
+        try
+        {
+            // Toggle: if this entry is already playing, stop. Otherwise start it.
+            if (_currentlyPlayingId == entry.Id && _audioPlayback.IsPlaying)
+            {
+                _audioPlayback.Stop();
+                _currentlyPlayingId = null;
+                RefreshHistoryPanel();
+                return;
+            }
+
+            if (!File.Exists(entry.FilePath))
+            {
+                ShowToastNotification("Recording missing", "The audio file was deleted from disk.", ToolTipIcon.Warning);
+                _pendingAudioStore.Remove(entry.Id);
+                RefreshHistoryPanel();
+                return;
+            }
+
+            _audioPlayback.Play(entry.FilePath);
+            _currentlyPlayingId = entry.Id;
+            RefreshHistoryPanel();
+        }
+        catch (Exception ex)
+        {
+            ShowToastNotification("Playback error", ex.Message, ToolTipIcon.Error);
+        }
+    }
+
+    private void OnPlaybackEnded(object? sender, EventArgs e)
+    {
+        // The NAudio callback may run off the UI thread; marshal back before
+        // touching any controls.
+        if (IsDisposed) return;
+        try
+        {
+            if (InvokeRequired)
+            {
+                BeginInvoke(new Action(() =>
+                {
+                    _currentlyPlayingId = null;
+                    if (!IsDisposed) RefreshHistoryPanel();
+                }));
+            }
+            else
+            {
+                _currentlyPlayingId = null;
+                RefreshHistoryPanel();
+            }
+        }
+        catch
+        {
+            // Form may be tearing down; nothing useful to do here.
+        }
+    }
+
+    private void OnPendingDeleteClicked(PendingAudioEntry entry)
+    {
+        var result = MessageBox.Show(
+            "Delete this pending recording? The audio file will be removed and cannot be recovered.",
+            "Delete recording",
+            MessageBoxButtons.OKCancel,
+            MessageBoxIcon.Warning);
+        if (result != DialogResult.OK) return;
+
+        try
+        {
+            if (_currentlyPlayingId == entry.Id)
+            {
+                _audioPlayback.Stop();
+                _currentlyPlayingId = null;
+            }
+            _pendingAudioStore.Remove(entry.Id);
+            RefreshHistoryPanel();
+        }
+        catch (Exception ex)
+        {
+            ShowToastNotification("Delete failed", ex.Message, ToolTipIcon.Error);
+        }
+    }
+
+    /// <summary>
+    /// Re-runs transcription on a previously failed recording, using the currently
+    /// configured Azure/OpenAI / on-premise settings. On success the entry is moved
+    /// to the regular transcript history; on failure the toast surfaces the error
+    /// and the entry stays in the pending list with its <c>LastError</c> updated.
+    /// </summary>
+    private async Task RetryPendingTranscriptionAsync(PendingAudioEntry entry)
+    {
+        if (_isRetryingPending)
+        {
+            ShowToastNotification("Retry in progress", "Please wait for the current retry to finish.", ToolTipIcon.Info);
+            return;
+        }
+
+        if (!File.Exists(entry.FilePath))
+        {
+            ShowToastNotification("Recording missing", "The audio file was deleted from disk.", ToolTipIcon.Warning);
+            _pendingAudioStore.Remove(entry.Id);
+            RefreshHistoryPanel();
+            return;
+        }
+
+        // Stop any playback so the underlying WAV file isn't locked.
+        if (_currentlyPlayingId == entry.Id)
+        {
+            _audioPlayback.Stop();
+            _currentlyPlayingId = null;
+        }
+
+        _isRetryingPending = true;
+        _cursorOverlay ??= new CursorOverlay();
+        _cursorOverlay.ShowOverlay("Retrying transcription");
+
+        SpeechToTextService? retryService = null;
+        string? collected = null;
+        string? lastError = null;
+        var errorRaised = false;
+
+        try
+        {
+            string apiKey;
+            try
+            {
+                apiKey = await _secureStore.ResolveApiKeyAsync(_settings.AzureOpenAI.ApiKey, CancellationToken.None);
+            }
+            catch (InvalidOperationException ex)
+            {
+                ShowToastNotification("Configuration error", ex.Message, ToolTipIcon.Error);
+                _pendingAudioStore.UpdateLastError(entry.Id, ex.Message);
+                RefreshHistoryPanel();
+                return;
+            }
+
+            // Read the WAV file back to raw PCM. WaveFileReader skips the header
+            // and exposes the PCM payload, which is exactly what TranscribeAudioAsync
+            // re-wraps with its own header before posting.
+            byte[] pcm;
+            try
+            {
+                using var reader = new NAudio.Wave.WaveFileReader(entry.FilePath);
+                using var ms = new MemoryStream();
+                reader.CopyTo(ms);
+                pcm = ms.ToArray();
+            }
+            catch (Exception ex)
+            {
+                ShowToastNotification("Cannot read WAV", ex.Message, ToolTipIcon.Error);
+                _pendingAudioStore.UpdateLastError(entry.Id, ex.Message);
+                RefreshHistoryPanel();
+                return;
+            }
+
+            retryService = new SpeechToTextService(_settings.AzureOpenAI, apiKey);
+
+            EventHandler<string> capture = (_, text) =>
+            {
+                if (string.IsNullOrWhiteSpace(text)) return;
+                if (collected == null)
+                    collected = text.Trim();
+                else
+                    collected = collected + " " + text.Trim();
+            };
+            EventHandler<(string Message, Exception? Exception)> errorCapture = (_, args) =>
+            {
+                errorRaised = true;
+                lastError = args.Message;
+            };
+
+            retryService.TranscriptionReceived += capture;
+            retryService.ErrorLogging += OnErrorLogging;
+            retryService.ErrorLogging += errorCapture;
+            if (_debugConsole != null && !_debugConsole.IsDisposed)
+            {
+                retryService.RequestLogging += OnRequestLogging;
+                retryService.ResponseLogging += OnResponseLogging;
+                _debugConsole.LogInfo($"Retrying transcription for {Path.GetFileName(entry.FilePath)}...");
+            }
+
+            using var cts = new CancellationTokenSource();
+            await retryService.TranscribeAudioAsync(pcm, cts.Token);
+
+            retryService.TranscriptionReceived -= capture;
+            retryService.ErrorLogging -= OnErrorLogging;
+            retryService.ErrorLogging -= errorCapture;
+            if (_debugConsole != null && !_debugConsole.IsDisposed)
+            {
+                retryService.RequestLogging -= OnRequestLogging;
+                retryService.ResponseLogging -= OnResponseLogging;
+            }
+        }
+        catch (Exception ex)
+        {
+            errorRaised = true;
+            lastError = ex.Message;
+            if (_debugConsole != null && !_debugConsole.IsDisposed)
+            {
+                _debugConsole.LogError("Retry transcription failed", ex);
+            }
+        }
+        finally
+        {
+            if (retryService != null)
+            {
+                try
+                {
+                    await retryService.DisposeAsync();
+                }
+                catch
+                {
+                    // ignored
+                }
+            }
+            _cursorOverlay?.HideOverlay();
+            _isRetryingPending = false;
+        }
+
+        var succeeded = !errorRaised && !string.IsNullOrWhiteSpace(collected);
+        if (succeeded)
+        {
+            PushHistoryEntry(collected!);
+            _pendingAudioStore.Remove(entry.Id);
+            RefreshHistoryPanel();
+            ShowToastNotification("Transcription succeeded", "Audio has been transcribed and moved to history.", ToolTipIcon.Info);
+        }
+        else
+        {
+            var msg = lastError ?? "No transcription was produced.";
+            _pendingAudioStore.UpdateLastError(entry.Id, msg);
+            RefreshHistoryPanel();
+            ShowToastNotification("Retry failed", msg, ToolTipIcon.Error);
+        }
     }
 
     private void PushHistoryEntry(string text)
@@ -2076,6 +2492,10 @@ public partial class MainForm : Form
 
     private void MainForm_FormClosing(object? sender, FormClosingEventArgs e)
     {
+        // Always stop any pending-audio playback so the underlying WAV file is
+        // released, regardless of whether we hide or really close the window.
+        try { _audioPlayback?.Stop(); } catch { /* best effort */ }
+
         if (e.CloseReason == CloseReason.UserClosing)
         {
             e.Cancel = true;
@@ -2384,6 +2804,12 @@ public partial class MainForm : Form
         _cursorOverlay ??= new CursorOverlay();
         _cursorOverlay.ShowOverlay(_dictationUsedRealtime ? "Finalizing realtime session..." : "Transcription in progress");
 
+        // Track API-side errors raised during transcription so we can preserve the
+        // captured PCM as a "pending" recording the user can replay / retranscribe.
+        var transcriptionErrorRaised = false;
+        string? lastTranscriptionError = null;
+        var savedAsPending = false;
+
         try
         {
         // Show toast notification
@@ -2398,6 +2824,9 @@ public partial class MainForm : Form
         {
             if (_dictationUsedRealtime)
                 await FinalizeDictationRealtimeAsync(userCancelled: true).ConfigureAwait(true);
+            // The user has no usable key: preserve the audio so they can retry
+            // after fixing the configuration instead of losing their dictation.
+            TrySavePendingAudio(collectedAudio, $"Configuration error: {ex.Message}", ref savedAsPending);
             MessageBox.Show(
                 $"Configuration error:\n{ex.Message}\n\nPlease verify that the API key is configured in Config/appsettings.json",
                 "Configuration Error",
@@ -2419,13 +2848,32 @@ public partial class MainForm : Form
         }
         else if (collectedAudio != null && collectedAudio.Length > 0)
         {
+            // Local handler: captures any "Transcription API error" / network / parsing
+            // problem reported by the service while we are awaiting it, so we know
+            // afterwards whether to save the audio as a pending recording.
+            EventHandler<(string Message, Exception? Exception)> failureSniffer = (_, args) =>
+            {
+                if (args.Exception != null
+                    || args.Message.StartsWith("Transcription API error", StringComparison.OrdinalIgnoreCase)
+                    || args.Message.StartsWith("Server error", StringComparison.OrdinalIgnoreCase)
+                    || args.Message.StartsWith("Error sending", StringComparison.OrdinalIgnoreCase)
+                    || args.Message.StartsWith("Error reading", StringComparison.OrdinalIgnoreCase))
+                {
+                    transcriptionErrorRaised = true;
+                    lastTranscriptionError = args.Message;
+                }
+            };
+
+            var lengthBefore = _accumulatedTranscription.Length;
+
             try
             {
                 // Initialize transcription service
                 _speechToText = new SpeechToTextService(_settings.AzureOpenAI, apiKey);
                 _speechToText.TranscriptionReceived += OnTranscriptionReceived;
                 _speechToText.ErrorLogging += OnErrorLogging; // Always subscribe so API errors show toast
-                
+                _speechToText.ErrorLogging += failureSniffer;
+
                 // Connect debug request/response logging only when console is open
                 if (_debugConsole != null && !_debugConsole.IsDisposed)
                 {
@@ -2444,6 +2892,7 @@ public partial class MainForm : Form
                     _speechToText.RequestLogging -= OnRequestLogging;
                     _speechToText.ResponseLogging -= OnResponseLogging;
                     _speechToText.ErrorLogging -= OnErrorLogging;
+                    _speechToText.ErrorLogging -= failureSniffer;
                 }
 
                 // Dispose transcription service
@@ -2470,7 +2919,19 @@ public partial class MainForm : Form
                 {
                     _debugConsole.LogError("Error during transcription", ex);
                 }
+                transcriptionErrorRaised = true;
+                lastTranscriptionError ??= ex.Message;
                 MessageBox.Show($"Error during transcription: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            // Failure heuristic: an explicit error was reported, OR the call returned
+            // without emitting any new transcription text. Either way, hand the
+            // captured audio to the pending store so the user can listen back & retry.
+            var attemptFailed = transcriptionErrorRaised
+                                || _accumulatedTranscription.Length == lengthBefore;
+            if (attemptFailed)
+            {
+                TrySavePendingAudio(collectedAudio, lastTranscriptionError, ref savedAsPending);
             }
         }
         else
@@ -2687,6 +3148,13 @@ public partial class MainForm : Form
                 ShowTranscriptCard("Last transcript", _accumulatedTranscription.ToString(), recording: false);
             }
         }
+        else if (!savedAsPending)
+        {
+            // Catch-all for realtime drops (or any HTTP path that returned 200 but
+            // produced no usable text and no explicit error event): we still have the
+            // raw PCM, preserve it so the user can retranscribe later.
+            TrySavePendingAudio(collectedAudio, lastTranscriptionError ?? "No transcription was produced", ref savedAsPending);
+        }
         }
         catch (Exception ex)
         {
@@ -2694,6 +3162,9 @@ public partial class MainForm : Form
             {
                 _debugConsole.LogError("Error after recording stopped", ex);
             }
+            // Network / OS exception bubbled up past the inner handlers: still try
+            // to keep the audio so the recording isn't lost.
+            TrySavePendingAudio(collectedAudio, ex.Message, ref savedAsPending);
             MessageBox.Show($"Error: {ex.Message}", "Error", MessageBoxButtons.OK, MessageBoxIcon.Error);
             _statusLabel.Text = "\u2022  Ready";
             _statusLabel.ForeColor = FluentColors.AccentGlow;
@@ -2701,6 +3172,49 @@ public partial class MainForm : Form
         finally
         {
             _cursorOverlay?.HideOverlay();
+        }
+    }
+
+    /// <summary>
+    /// Persists <paramref name="audio"/> as a WAV file in the pending-audio store and
+    /// refreshes the history view so the new card is visible immediately. Safe to call
+    /// with a null/empty buffer and idempotent within a single <see cref="StopRecording"/>
+    /// invocation thanks to <paramref name="alreadySaved"/>.
+    /// </summary>
+    private void TrySavePendingAudio(byte[]? audio, string? errorMessage, ref bool alreadySaved)
+    {
+        if (alreadySaved) return;
+        if (audio == null || audio.Length == 0) return;
+
+        try
+        {
+            var entry = _pendingAudioStore.Add(
+                audio,
+                _settings.Audio.SampleRate,
+                _settings.AzureOpenAI.Language ?? "",
+                errorMessage);
+            alreadySaved = true;
+
+            if (_debugConsole != null && !_debugConsole.IsDisposed)
+            {
+                _debugConsole.LogInfo(
+                    $"Saved failed recording for retry: {Path.GetFileName(entry.FilePath)} ({entry.Duration.TotalSeconds:0.0}s)");
+            }
+
+            ShowToastNotification(
+                "Recording saved",
+                "Transcription failed. The audio is available in History for replay and retry.",
+                ToolTipIcon.Warning);
+
+            // Refresh history view so the pending card appears right away.
+            try { RefreshHistoryPanel(); } catch { /* UI may not be ready yet */ }
+        }
+        catch (Exception ex)
+        {
+            if (_debugConsole != null && !_debugConsole.IsDisposed)
+            {
+                _debugConsole.LogError("Failed to persist pending audio", ex);
+            }
         }
     }
 
@@ -4661,6 +5175,18 @@ public partial class MainForm : Form
             _notifyIcon?.Dispose();
             _cursorOverlay?.Dispose();
             _cursorOverlay = null;
+            try
+            {
+                if (_audioPlayback != null)
+                {
+                    _audioPlayback.PlaybackEnded -= OnPlaybackEnded;
+                    _audioPlayback.Dispose();
+                }
+            }
+            catch
+            {
+                // Best effort on shutdown.
+            }
             _rewriteTooltip?.Dispose();
             _settingsMenu?.Dispose();
             
