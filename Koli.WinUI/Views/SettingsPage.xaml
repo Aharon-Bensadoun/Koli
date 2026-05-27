@@ -1,7 +1,8 @@
 <Page
     x:Class="Koli.WinUI.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Koli.WinUI.Controls">
 
     <ScrollViewer Padding="24">
         <StackPanel Spacing="16" MaxWidth="720">
@@ -13,9 +14,17 @@
             <TextBlock Text="Rewrite style"/>
             <ComboBox ItemsSource="{Binding RewriteLevels}" SelectedItem="{Binding RewriteLevel, Mode=TwoWay}"/>
 
-            <ToggleSwitch Header="Enable translation" IsOn="{Binding TranslationEnabled, Mode=TwoWay}"/>
-            <TextBlock Text="Translation target language (ISO code)"/>
-            <TextBox Text="{Binding TranslationTarget, Mode=TwoWay}"/>
+            <TextBlock Text="Langue de sortie" FontWeight="SemiBold"/>
+            <TextBlock Text="Disponible avec OpenAI / Azure OpenAI uniquement."
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       Visibility="{Binding ShowOnPremOutputLanguageNotice, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <ComboBox Header="Mode"
+                      ItemsSource="{Binding OutputLanguageModes}"
+                      SelectedItem="{Binding OutputLanguageMode, Mode=TwoWay}"
+                      IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"/>
+            <TextBlock Text="Langue cible (ISO 639-1, ex. en, fr, he)"/>
+            <TextBox Text="{Binding TranslationTarget, Mode=TwoWay}"
+                     IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"/>
 
             <TextBlock Text="Typing" FontWeight="SemiBold"/>
             <ToggleSwitch Header="Auto space" IsOn="{Binding TypingAutoSpace, Mode=TwoWay}"/>

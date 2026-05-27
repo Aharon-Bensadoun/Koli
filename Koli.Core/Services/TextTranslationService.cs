@@ -8,8 +8,8 @@ namespace Koli.Services;
 
 /// <summary>
 /// Translates a transcribed text to the user-selected target language via a chat-completion call.
-/// Runs only in <c>LanguageMode = "Manual"</c>, because Whisper / gpt-4o-transcribe's <c>language</c>
-/// parameter is only a hint about the input language; it never forces the output language.
+/// Post-transcription fallback when OpenAI/Azure STT cannot produce cross-lingual output directly
+/// (e.g. whisper-1 to non-English, Realtime). Whisper / gpt-4o-transcribe <c>language</c> is only an input hint.
 ///
 /// Two protocols are supported, chosen automatically from the configured endpoint:
 ///   - <b>OpenAI / Azure OpenAI</b> (URL contains <c>openai.com</c>): standard

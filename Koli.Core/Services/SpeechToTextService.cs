@@ -10,11 +10,21 @@ public sealed class SpeechToTextService : IAsyncDisposable
 {
     private readonly HttpClient _httpClient;
     private readonly AzureOpenAISettings _settings;
+    private readonly TranslationSettings _translationSettings;
     private readonly string _apiKey;
     private CancellationTokenSource? _cts;
     private string _currentLanguage = "fr";
+    private TextTranslationService? _fallbackTranslation;
 
     public event EventHandler<string>? TranscriptionReceived;
+
+    /// <summary>True when the last HTTP or Realtime segment already applied cross-lingual output (skip post-STT LLM).</summary>
+    public bool OutputAlreadyApplied { get; private set; }
+
+    /// <summary>Strategy used for the most recent transcription request.</summary>
+    public TranscriptionApiMode LastTranscriptionMode { get; private set; } = TranscriptionApiMode.Transcribe;
+
+    public TranscriptionRequestPlan? LastRequestPlan { get; private set; }
 
     /// <summary>Language code sent to the transcription API (used for on-premise; for Azure, Language from settings is used).</summary>
     public string CurrentLanguage
@@ -35,15 +45,41 @@ public sealed class SpeechToTextService : IAsyncDisposable
     private CancellationTokenSource? _realtimeCts;
     private Task? _realtimeTask;
 
-    public SpeechToTextService(AzureOpenAISettings settings, string apiKey)
+    public SpeechToTextService(AzureOpenAISettings settings, string apiKey, TranslationSettings? translationSettings = null)
     {
         _settings = settings;
+        _translationSettings = translationSettings ?? new TranslationSettings();
         _apiKey = apiKey;
         _currentLanguage = !string.IsNullOrWhiteSpace(settings.Language) ? settings.Language : "fr";
         _httpClient = new HttpClient
         {
             Timeout = Timeout.InfiniteTimeSpan
         };
+    }
+
+    private string ResolveInputLanguage()
+    {
+        var lang = TranscriptionOutputLanguageService.GetInputLanguage(_settings);
+        if (!string.IsNullOrWhiteSpace(_currentLanguage))
+            lang = _currentLanguage;
+        return lang;
+    }
+
+    private TranscriptionRequestPlan ResolveHttpPlan()
+    {
+        var plan = TranscriptionStrategyResolver.ResolvePlan(
+            _settings, _translationSettings, ResolveInputLanguage(), isRealtime: false);
+        LastRequestPlan = plan;
+        LastTranscriptionMode = plan.Mode;
+        return plan;
+    }
+
+    private TranscriptionRequestPlan ResolveRealtimePlan()
+    {
+        var plan = TranscriptionStrategyResolver.ResolvePlan(
+            _settings, _translationSettings, ResolveInputLanguage(), isRealtime: true);
+        LastRequestPlan = plan;
+        return plan;
     }
 
     public Task StartAsync(IAsyncEnumerable<byte[]> audioStream, CancellationToken cancellationToken)
@@ -174,28 +210,19 @@ public sealed class SpeechToTextService : IAsyncDisposable
         var token = _realtimeCts.Token;
 
         var wssUrl = OpenAiRealtimeTranscriptionSession.BuildWebSocketUrl(_settings);
+        var realtimePlan = ResolveRealtimePlan();
+        LastTranscriptionMode = realtimePlan.Mode;
+        OutputAlreadyApplied = false;
+
+        if (realtimePlan.Mode == TranscriptionApiMode.PostTranslationFallback)
+            _fallbackTranslation = new TextTranslationService(_translationSettings, _settings.Endpoint, _apiKey);
 
         _realtimeTask = Task.Run(async () =>
         {
             await using var session = new OpenAiRealtimeTranscriptionSession(_settings, _apiKey);
             await session.RunAsync(
                 pcm16kChunks,
-                e =>
-                {
-                    if (e.IsFinal)
-                    {
-                        var t = e.Text.Trim();
-                        if (string.IsNullOrEmpty(t))
-                            return;
-                        if (IsHallucination(t))
-                        {
-                            ErrorLogging?.Invoke(this, ($"Hallucination detected and filtered: {t}", null));
-                            return;
-                        }
-                    }
-
-                    RealtimeTranscript?.Invoke(this, e);
-                },
+                e => OnRealtimeTranscriptReceived(e, realtimePlan),
                 (msg, ex) => ErrorLogging?.Invoke(this, (msg, ex)),
                 (method, body) =>
                 {
@@ -222,7 +249,14 @@ public sealed class SpeechToTextService : IAsyncDisposable
                 },
                 token,
                 periodicBufferCommits,
-                periodicCommitIntervalSeconds).ConfigureAwait(false);
+                periodicCommitIntervalSeconds,
+                realtimePlan).ConfigureAwait(false);
+
+            if (_fallbackTranslation != null)
+            {
+                await _fallbackTranslation.DisposeAsync().ConfigureAwait(false);
+                _fallbackTranslation = null;
+            }
         }, CancellationToken.None);
 
         return _realtimeTask;
@@ -243,6 +277,59 @@ public sealed class SpeechToTextService : IAsyncDisposable
         return Task.CompletedTask;
     }
 
+    private void OnRealtimeTranscriptReceived(RealtimeTranscriptEventArgs e, TranscriptionRequestPlan plan)
+    {
+        if (e.IsFinal)
+        {
+            var t = e.Text.Trim();
+            if (string.IsNullOrEmpty(t))
+                return;
+            if (IsHallucination(t))
+            {
+                ErrorLogging?.Invoke(this, ($"Hallucination detected and filtered: {t}", null));
+                return;
+            }
+
+            if (plan.Mode == TranscriptionApiMode.PostTranslationFallback
+                && !string.IsNullOrWhiteSpace(plan.OutputLanguage)
+                && _fallbackTranslation != null)
+            {
+                _ = TranslateRealtimeSegmentAsync(e, plan);
+                return;
+            }
+
+            if (TranscriptionStrategyResolver.OutputAppliedByStt(plan.Mode))
+                OutputAlreadyApplied = true;
+        }
+
+        RealtimeTranscript?.Invoke(this, e);
+    }
+
+    private async Task TranslateRealtimeSegmentAsync(RealtimeTranscriptEventArgs e, TranscriptionRequestPlan plan)
+    {
+        try
+        {
+            var translated = await _fallbackTranslation!
+                .TranslateAsync(e.Text, plan.OutputLanguage!, CancellationToken.None)
+                .ConfigureAwait(false);
+
+            var finalText = string.IsNullOrWhiteSpace(translated) ? e.Text : translated;
+            OutputAlreadyApplied = true;
+            RealtimeTranscript?.Invoke(this, new RealtimeTranscriptEventArgs
+            {
+                ItemId = e.ItemId,
+                Text = finalText,
+                IsFinal = true,
+                Delta = null
+            });
+        }
+        catch (Exception ex)
+        {
+            ErrorLogging?.Invoke(this, ("Realtime segment translation failed", ex));
+            RealtimeTranscript?.Invoke(this, e);
+        }
+    }
+
     private bool UseOnPremiseApi => !string.IsNullOrWhiteSpace(_settings.Endpoint) && !_settings.Endpoint.Contains("openai.com", StringComparison.OrdinalIgnoreCase);
 
     private async Task ProcessChunkAsync(byte[] audioData, CancellationToken cancellationToken)
@@ -256,9 +343,34 @@ public sealed class SpeechToTextService : IAsyncDisposable
             return;
         }
 
-        var requestUri = !string.IsNullOrWhiteSpace(_settings.Endpoint) && _settings.Endpoint.Contains("openai.com", StringComparison.OrdinalIgnoreCase)
-            ? $"{_settings.Endpoint.TrimEnd('/')}/v1/audio/transcriptions"
-            : "https://api.openai.com/v1/audio/transcriptions";
+        var plan = ResolveHttpPlan();
+        LastTranscriptionMode = plan.Mode;
+        OutputAlreadyApplied = false;
+
+        var text = await SendOpenAiAudioRequestAsync(audioData, plan, cancellationToken).ConfigureAwait(false);
+        if (string.IsNullOrWhiteSpace(text))
+            return;
+
+        if (plan.Mode == TranscriptionApiMode.PostTranslationFallback
+            && !string.IsNullOrWhiteSpace(plan.OutputLanguage))
+        {
+            text = await ApplyPostTranslationFallbackAsync(text, plan.OutputLanguage!, cancellationToken).ConfigureAwait(false);
+            OutputAlreadyApplied = !string.IsNullOrWhiteSpace(text);
+        }
+        else
+        {
+            OutputAlreadyApplied = TranscriptionStrategyResolver.OutputAppliedByStt(plan.Mode);
+        }
+
+        EmitTranscriptionIfValid(text);
+    }
+
+    private async Task<string?> SendOpenAiAudioRequestAsync(byte[] audioData, TranscriptionRequestPlan plan, CancellationToken cancellationToken)
+    {
+        var baseUri = !string.IsNullOrWhiteSpace(_settings.Endpoint) && _settings.Endpoint.Contains("openai.com", StringComparison.OrdinalIgnoreCase)
+            ? _settings.Endpoint.TrimEnd('/')
+            : "https://api.openai.com";
+        var requestUri = $"{baseUri}/v1/audio/{plan.EndpointPath}";
 
         using var request = new HttpRequestMessage(HttpMethod.Post, requestUri);
         request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
@@ -272,15 +384,16 @@ public sealed class SpeechToTextService : IAsyncDisposable
         var audioContent = new StreamContent(wavStream);
         audioContent.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
         content.Add(audioContent, "file", "audio.wav");
-
         content.Add(new StringContent(_settings.Model), "model");
-        if (!string.IsNullOrWhiteSpace(_settings.Language) && !_settings.OmitTranscriptionLanguage)
-            content.Add(new StringContent(_settings.Language), "language");
-        if (!string.IsNullOrWhiteSpace(_settings.Prompt))
-            content.Add(new StringContent(_settings.Prompt), "prompt");
+
+        if (!string.IsNullOrWhiteSpace(plan.InputLanguageHint))
+            content.Add(new StringContent(plan.InputLanguageHint), "language");
+
+        if (!string.IsNullOrWhiteSpace(plan.EffectivePrompt))
+            content.Add(new StringContent(plan.EffectivePrompt), "prompt");
 
         request.Content = content;
-        RequestLogging?.Invoke(this, ("POST", requestUri, new Dictionary<string, string>(), BuildRequestLogBody(audioData.Length, _settings.Prompt)));
+        RequestLogging?.Invoke(this, ("POST", requestUri, new Dictionary<string, string>(), BuildRequestLogBody(audioData.Length, plan.EffectivePrompt, plan)));
 
         try
         {
@@ -296,17 +409,24 @@ public sealed class SpeechToTextService : IAsyncDisposable
                     ? $"Transcription API error: {statusInfo}."
                     : $"Transcription API error ({statusInfo}): {apiMessage}";
                 ErrorLogging?.Invoke(this, (userMessage, null));
-                return;
+                return null;
             }
 
             var transcriptionResponse = JsonSerializer.Deserialize<OpenAITranscriptionResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-            EmitTranscriptionIfValid(transcriptionResponse?.Text);
+            return transcriptionResponse?.Text?.Trim();
         }
         catch (Exception ex)
         {
-            if (ex is TaskCanceledException) return;
+            if (ex is TaskCanceledException) return null;
             ErrorLogging?.Invoke(this, ("Error sending/parsing chunk", ex));
+            return null;
         }
+    }
+
+    private async Task<string?> ApplyPostTranslationFallbackAsync(string text, string targetLanguage, CancellationToken cancellationToken)
+    {
+        await using var translation = new TextTranslationService(_translationSettings, _settings.Endpoint, _apiKey);
+        return await translation.TranslateAsync(text, targetLanguage, cancellationToken).ConfigureAwait(false) ?? text;
     }
 
     private async Task ProcessChunkOnPremiseAsync(byte[] audioData, CancellationToken cancellationToken)
@@ -472,15 +592,18 @@ public sealed class SpeechToTextService : IAsyncDisposable
     /// language actually sent to the API and whether a prompt was included. Useful
     /// when debugging why a given transcription came back in an unexpected language.
     /// </summary>
-    private string BuildRequestLogBody(int audioLength, string? prompt)
+    private string BuildRequestLogBody(int audioLength, string? prompt, TranscriptionRequestPlan? plan = null)
     {
-        var languageSent = _settings.OmitTranscriptionLanguage
-            ? "<omitted>"
-            : (!string.IsNullOrWhiteSpace(_currentLanguage) ? _currentLanguage : _settings.Language);
+        var languageSent = plan?.InputLanguageHint
+            ?? (_settings.OmitTranscriptionLanguage
+                ? "<omitted>"
+                : (!string.IsNullOrWhiteSpace(_currentLanguage) ? _currentLanguage : _settings.Language));
         var promptInfo = string.IsNullOrWhiteSpace(prompt)
             ? "<none>"
             : $"{prompt!.Length} chars";
-        return $"Chunk size: {audioLength} bytes (WAV header added); language={languageSent}; mode={_settings.LanguageMode}; prompt={promptInfo}";
+        var strategy = plan?.Mode.ToString() ?? "Transcribe";
+        var endpointPath = plan?.EndpointPath ?? "transcriptions";
+        return $"Chunk size: {audioLength} bytes (WAV header added); language={languageSent}; mode={_settings.LanguageMode}; strategy={strategy}; endpoint={endpointPath}; prompt={promptInfo}";
     }
 
     private static void WriteWavHeader(Stream stream, int dataLength)
@@ -501,44 +624,24 @@ public sealed class SpeechToTextService : IAsyncDisposable
         if (UseOnPremiseApi)
             return await TranscribeChunkOnPremiseDirectAsync(audioData, cancellationToken).ConfigureAwait(false);
 
-        var requestUri = !string.IsNullOrWhiteSpace(_settings.Endpoint) && _settings.Endpoint.Contains("openai.com", StringComparison.OrdinalIgnoreCase)
-            ? $"{_settings.Endpoint.TrimEnd('/')}/v1/audio/transcriptions"
-            : "https://api.openai.com/v1/audio/transcriptions";
+        var plan = ResolveHttpPlan();
+        LastTranscriptionMode = plan.Mode;
+        OutputAlreadyApplied = false;
 
-        using var request = new HttpRequestMessage(HttpMethod.Post, requestUri);
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _apiKey);
-
-        using var content = new MultipartFormDataContent();
-        using var wavStream = new MemoryStream();
-        WriteWavHeader(wavStream, audioData.Length);
-        await wavStream.WriteAsync(audioData, cancellationToken);
-        wavStream.Position = 0;
-
-        var audioContent = new StreamContent(wavStream);
-        audioContent.Headers.ContentType = new MediaTypeHeaderValue("audio/wav");
-        content.Add(audioContent, "file", "audio.wav");
-        content.Add(new StringContent(_settings.Model), "model");
-        if (!string.IsNullOrWhiteSpace(_settings.Language) && !_settings.OmitTranscriptionLanguage)
-            content.Add(new StringContent(_settings.Language), "language");
-        if (!string.IsNullOrWhiteSpace(_settings.Prompt))
-            content.Add(new StringContent(_settings.Prompt), "prompt");
-
-        request.Content = content;
-        RequestLogging?.Invoke(this, ("POST", requestUri, new Dictionary<string, string>(), BuildRequestLogBody(audioData.Length, _settings.Prompt)));
-
-        using var response = await _httpClient.SendAsync(request, cancellationToken).ConfigureAwait(false);
-        var responseBody = await response.Content.ReadAsStringAsync(cancellationToken).ConfigureAwait(false);
-
-        if (!response.IsSuccessStatusCode)
-        {
-            ErrorLogging?.Invoke(this, ($"Transcription API error: {(int)response.StatusCode}", null));
-            return null;
-        }
-
-        var result = JsonSerializer.Deserialize<OpenAITranscriptionResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-        var text = result?.Text?.Trim();
+        var text = await SendOpenAiAudioRequestAsync(audioData, plan, cancellationToken).ConfigureAwait(false);
         if (string.IsNullOrWhiteSpace(text) || IsHallucination(text))
             return null;
+
+        if (plan.Mode == TranscriptionApiMode.PostTranslationFallback
+            && !string.IsNullOrWhiteSpace(plan.OutputLanguage))
+        {
+            text = await ApplyPostTranslationFallbackAsync(text, plan.OutputLanguage!, cancellationToken).ConfigureAwait(false);
+            OutputAlreadyApplied = !string.IsNullOrWhiteSpace(text);
+        }
+        else
+        {
+            OutputAlreadyApplied = TranscriptionStrategyResolver.OutputAppliedByStt(plan.Mode);
+        }
 
         return text;
     }

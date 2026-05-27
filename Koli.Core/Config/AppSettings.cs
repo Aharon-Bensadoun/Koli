@@ -1,5 +1,6 @@
 using System.Text.Json;
 using Koli.Models;
+using Koli.Services;
 
 namespace Koli.Config;
 
@@ -37,6 +38,9 @@ public sealed class AppSettings
         settings.Rewrite ??= new RewriteSettings();
         settings.Meeting ??= new MeetingSettings();
         settings.Translation ??= new TranslationSettings();
+
+        TranscriptionOutputLanguageService.MigrateTranslationSettings(settings.Translation);
+        TranscriptionOutputLanguageService.SyncLegacyEnabledFlag(settings.Translation);
         
         // Ensure ProfessionalismLevel has a default value
         if (string.IsNullOrWhiteSpace(settings.Rewrite.ProfessionalismLevel))
@@ -169,22 +173,23 @@ public sealed class MeetingSettings
 }
 
 /// <summary>
-/// Optional post-transcription translation step. Completely independent from
-/// <see cref="AzureOpenAISettings.LanguageMode"/>: by default the application just
-/// transcribes the audio in the spoken language. The user opts-in to translation
-/// by enabling it here and choosing a <see cref="TargetLanguage"/>.
+/// Output language settings (UI: "Langue de sortie"). For OpenAI/Azure endpoints the app
+/// routes STT to produce text directly in the target language when possible; otherwise a
+/// post-transcription LLM step applies. On-prem endpoints keep legacy behaviour only.
 /// </summary>
 public sealed class TranslationSettings
 {
-    /// <summary>Master switch for the translation step. Default false (no translation).</summary>
+    /// <summary>Legacy master switch; kept in sync with <see cref="Mode"/> for JSON compatibility.</summary>
     public bool Enabled { get; set; } = false;
 
     /// <summary>
-    /// ISO 639-1 code of the language the transcription should be translated into
-    /// (e.g. <c>"en"</c>, <c>"fr"</c>, <c>"he"</c>). Empty string means no translation
-    /// (equivalent to <see cref="Enabled"/> = false).
+    /// ISO 639-1 code of the desired output language
+    /// (e.g. <c>"en"</c>, <c>"fr"</c>, <c>"he"</c>). Used when <see cref="Mode"/> is <c>Fixed</c>.
     /// </summary>
     public string TargetLanguage { get; set; } = "";
+
+    /// <summary><c>SameAsSpoken</c> (default) or <c>Fixed</c> for a fixed output language.</summary>
+    public string Mode { get; set; } = "SameAsSpoken";
 
     /// <summary>
     /// Chat completion URL. Leave empty to auto-derive from <see cref="AzureOpenAISettings.Endpoint"/>:

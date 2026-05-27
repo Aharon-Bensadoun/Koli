@@ -7,14 +7,16 @@ namespace Koli.WinUI.Dialogs;
 public sealed class ApiConfigurationDialog : ContentDialog
 {
     private readonly AzureOpenAISettings _settings;
-    private readonly PasswordBox _apiKeyBox;
+    private readonly PasswordBox _apiKeyPasswordBox;
+    private readonly TextBox _apiKeyTextBox;
+    private readonly CheckBox _showApiKeyCheckBox;
     private readonly TextBox _endpointBox;
     private readonly ComboBox _modelBox;
     private readonly TextBox _providerIdBox;
 
     public bool Result { get; private set; }
 
-    public ApiConfigurationDialog(AzureOpenAISettings settings, bool isStartup)
+    public ApiConfigurationDialog(AzureOpenAISettings settings, bool isStartup, string? displayApiKey = null)
     {
         _settings = settings;
         Title = "API Configuration";
@@ -28,15 +30,50 @@ public sealed class ApiConfigurationDialog : ContentDialog
         {
             panel.Children.Add(new TextBlock
             {
-                Text = "Configure your transcription API to start using Koli.",
+                Text = "No API key is configured yet. Enter your OpenAI or Azure OpenAI key below to start using Koli.",
                 TextWrapping = TextWrapping.WrapWholeWords,
                 Foreground = Application.Current.Resources["TextSecondaryBrush"] as Microsoft.UI.Xaml.Media.Brush
             });
         }
 
-        panel.Children.Add(new TextBlock { Text = "API Key" });
-        _apiKeyBox = new PasswordBox { Password = settings.ApiKey, PlaceholderText = "sk-..." };
-        panel.Children.Add(_apiKeyBox);
+        var initialApiKey = !string.IsNullOrWhiteSpace(displayApiKey)
+            ? displayApiKey
+            : SecureSettingsStore.HasConfiguredKey(settings.ApiKey)
+                ? settings.ApiKey
+                : string.Empty;
+
+        var apiKeyHeader = new Grid();
+        apiKeyHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = new GridLength(1, GridUnitType.Star) });
+        apiKeyHeader.ColumnDefinitions.Add(new ColumnDefinition { Width = GridLength.Auto });
+
+        var apiKeyLabel = new TextBlock { Text = "API Key", VerticalAlignment = VerticalAlignment.Center };
+        Grid.SetColumn(apiKeyLabel, 0);
+        apiKeyHeader.Children.Add(apiKeyLabel);
+
+        _showApiKeyCheckBox = new CheckBox
+        {
+            Content = "Show",
+            VerticalAlignment = VerticalAlignment.Center
+        };
+        Grid.SetColumn(_showApiKeyCheckBox, 1);
+        apiKeyHeader.Children.Add(_showApiKeyCheckBox);
+        panel.Children.Add(apiKeyHeader);
+
+        var apiKeyContainer = new Grid();
+        _apiKeyPasswordBox = new PasswordBox { Password = initialApiKey, PlaceholderText = "sk-..." };
+        _apiKeyTextBox = new TextBox
+        {
+            Text = initialApiKey,
+            PlaceholderText = "sk-...",
+            Visibility = Visibility.Collapsed,
+            FontFamily = _apiKeyPasswordBox.FontFamily
+        };
+        apiKeyContainer.Children.Add(_apiKeyPasswordBox);
+        apiKeyContainer.Children.Add(_apiKeyTextBox);
+        panel.Children.Add(apiKeyContainer);
+
+        _showApiKeyCheckBox.Checked += (_, _) => SetApiKeyVisible(true);
+        _showApiKeyCheckBox.Unchecked += (_, _) => SetApiKeyVisible(false);
 
         panel.Children.Add(new TextBlock { Text = "Endpoint (empty = OpenAI cloud)" });
         _endpointBox = new TextBox { Text = settings.Endpoint, PlaceholderText = "https://api.openai.com" };
@@ -58,7 +95,8 @@ public sealed class ApiConfigurationDialog : ContentDialog
 
         PrimaryButtonClick += (_, _) =>
         {
-            _settings.ApiKey = _apiKeyBox.Password;
+            var apiKey = ApiKeyValue.Trim();
+            _settings.ApiKey = SecureSettingsStore.IsPlaceholderApiKey(apiKey) ? string.Empty : apiKey;
             _settings.Endpoint = _endpointBox.Text.Trim();
             _settings.Model = string.IsNullOrWhiteSpace(_modelBox.Text) ? _modelBox.SelectedItem?.ToString() ?? settings.Model : _modelBox.Text.Trim();
             if (int.TryParse(_providerIdBox.Text, out var providerId))
@@ -69,5 +107,24 @@ public sealed class ApiConfigurationDialog : ContentDialog
         };
 
         CloseButtonClick += (_, _) => Result = false;
+    }
+
+    private string ApiKeyValue =>
+        _showApiKeyCheckBox.IsChecked == true ? _apiKeyTextBox.Text : _apiKeyPasswordBox.Password;
+
+    private void SetApiKeyVisible(bool visible)
+    {
+        if (visible)
+        {
+            _apiKeyTextBox.Text = _apiKeyPasswordBox.Password;
+            _apiKeyPasswordBox.Visibility = Visibility.Collapsed;
+            _apiKeyTextBox.Visibility = Visibility.Visible;
+            _apiKeyTextBox.Focus(FocusState.Programmatic);
+            return;
+        }
+
+        _apiKeyPasswordBox.Password = _apiKeyTextBox.Text;
+        _apiKeyTextBox.Visibility = Visibility.Collapsed;
+        _apiKeyPasswordBox.Visibility = Visibility.Visible;
     }
 }

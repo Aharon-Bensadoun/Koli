@@ -25,6 +25,8 @@ public sealed class GlobalHotkeyService : IDisposable
     private WindowMessageSubclass? _subclass;
     private bool _registered;
 
+    public bool RegistrationFailed { get; private set; }
+
     public event EventHandler<HotkeyAction>? HotkeyPressed;
 
     public void Register(IntPtr hwnd)
@@ -35,12 +37,11 @@ public sealed class GlobalHotkeyService : IDisposable
         Unregister();
         _hwnd = hwnd;
 
-        if (!RegisterHotKey(_hwnd, HotkeyToggleRecording, ModNone, VkF9)
-            || !RegisterHotKey(_hwnd, HotkeyCancelRecording, ModNone, VkF7)
-            || !RegisterHotKey(_hwnd, HotkeyTogglePause, ModNone, VkF6))
-        {
-            throw new InvalidOperationException("Failed to register global hotkeys (F6/F7/F9).");
-        }
+        var allRegistered = RegisterHotKey(_hwnd, HotkeyToggleRecording, ModNone, VkF9)
+            & RegisterHotKey(_hwnd, HotkeyCancelRecording, ModNone, VkF7)
+            & RegisterHotKey(_hwnd, HotkeyTogglePause, ModNone, VkF6);
+
+        RegistrationFailed = !allRegistered;
 
         _subclass = new WindowMessageSubclass(hwnd, OnWindowMessage);
         _subclassId = _subclass.Attach();

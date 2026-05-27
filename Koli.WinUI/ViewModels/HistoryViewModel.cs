@@ -182,7 +182,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
                 return;
             }
 
-            retryService = new SpeechToTextService(_settings.AzureOpenAI, apiKey);
+            retryService = new SpeechToTextService(_settings.AzureOpenAI, apiKey, _settings.Translation);
 
             EventHandler<string> capture = (_, text) =>
             {

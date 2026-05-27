@@ -11,8 +11,20 @@
         </Grid.RowDefinitions>
 
         <StackPanel Orientation="Horizontal" Spacing="12">
-            <Button Content="{Binding TranslationChip}" Command="{Binding OpenTranslationSettingsCommand}"/>
-            <TextBlock Text="{Binding LanguageLabel}" VerticalAlignment="Center" Foreground="{StaticResource AccentGlowBrush}" FontWeight="SemiBold"/>
+            <Button Command="{Binding OpenOutputLanguageSettingsCommand}"
+                    IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"
+                    ToolTipService.ToolTip="Langue du texte produit (OpenAI / Azure OpenAI uniquement)">
+                <StackPanel Orientation="Horizontal" Spacing="4">
+                    <TextBlock Text="Sortie:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Text="{Binding OutputLanguageChip}" FontWeight="SemiBold"/>
+                    <FontIcon Glyph="&#xE70D;" FontSize="10" VerticalAlignment="Center"/>
+                </StackPanel>
+            </Button>
+            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
+                        ToolTipService.ToolTip="Langue détectée depuis le clavier Windows">
+                <TextBlock Text="Entrée:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                <TextBlock Text="{Binding InputLanguageChip}" Foreground="{StaticResource AccentGlowBrush}" FontWeight="SemiBold"/>
+            </StackPanel>
             <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
             <TextBlock Text="{Binding TimerText}" VerticalAlignment="Center" FontFamily="Cascadia Mono" Foreground="{StaticResource TextPrimaryBrush}"/>
         </StackPanel>

@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Koli.Config;
 using Koli.Platform;
 using Koli.Services;
@@ -15,6 +17,117 @@ public class InputLanguageServiceTests
     public void MapLanguageIdToCode_MapsCommonLayouts(ushort langId, string expected)
     {
         Assert.Equal(expected, InputLanguageService.MapLanguageIdToCode(langId));
+    }
+}
+
+public class SecureSettingsStoreTests : IDisposable
+{
+    private readonly string _tempDirectory = Path.Combine(Path.GetTempPath(), "koli-tests-" + Guid.NewGuid());
+
+    public SecureSettingsStoreTests()
+    {
+        Directory.CreateDirectory(_tempDirectory);
+    }
+
+    public void Dispose()
+    {
+        if (Directory.Exists(_tempDirectory))
+        {
+            Directory.Delete(_tempDirectory, recursive: true);
+        }
+    }
+
+    [Theory]
+    [InlineData(null, false)]
+    [InlineData("", false)]
+    [InlineData("   ", false)]
+    [InlineData("sk-proj-yourapikey", true)]
+    [InlineData("YOUR_API_KEY_HERE", true)]
+    [InlineData("sk-live-real-key", false)]
+    public void IsPlaceholderApiKey_DetectsTemplateValues(string? apiKey, bool expected)
+    {
+        Assert.Equal(expected, SecureSettingsStore.IsPlaceholderApiKey(apiKey));
+    }
+
+    [Fact]
+    public void IsApiKeyConfigured_ReturnsTrueWhenSecretFileContainsValidKey()
+    {
+        var store = new SecureSettingsStore(_tempDirectory);
+        WriteEncryptedSecret(_tempDirectory, "sk-live-real-key");
+
+        Assert.True(store.IsApiKeyConfigured(null));
+        Assert.True(store.IsApiKeyConfigured("sk-proj-yourapikey"));
+    }
+
+    [Fact]
+    public void IsApiKeyConfigured_IgnoresPlaceholderInJsonAndSecret()
+    {
+        var store = new SecureSettingsStore(_tempDirectory);
+        WriteEncryptedSecret(_tempDirectory, "sk-proj-yourapikey");
+
+        Assert.False(store.IsApiKeyConfigured(null));
+        Assert.False(store.IsApiKeyConfigured("sk-proj-yourapikey"));
+        Assert.False(store.IsApiKeyConfigured("YOUR_API_KEY_HERE"));
+    }
+
+    [Fact]
+    public async Task ResolveApiKeyAsync_OverwritesPlaceholderSecretWithConfiguredKey()
+    {
+        var store = new SecureSettingsStore(_tempDirectory);
+        WriteEncryptedSecret(_tempDirectory, "sk-proj-yourapikey");
+
+        var key = await store.ResolveApiKeyAsync("sk-live-real-key", CancellationToken.None);
+
+        Assert.Equal("sk-live-real-key", key);
+        Assert.True(store.IsApiKeyConfigured(null));
+        var resolvedFromSecret = await store.ResolveApiKeyAsync(null, CancellationToken.None);
+        Assert.Equal("sk-live-real-key", resolvedFromSecret);
+    }
+
+    private static void WriteEncryptedSecret(string baseDirectory, string apiKey)
+    {
+        var secretPath = Path.Combine(baseDirectory, "Config", "api.secret");
+        Directory.CreateDirectory(Path.GetDirectoryName(secretPath)!);
+        var payload = ProtectedData.Protect(Encoding.UTF8.GetBytes(apiKey), optionalEntropy: null, DataProtectionScope.CurrentUser);
+        File.WriteAllBytes(secretPath, payload);
+    }
+
+    [Fact]
+    public void IsApiKeyConfigured_ReturnsFalseForMissingKeyAndSecret()
+    {
+        var store = new SecureSettingsStore(_tempDirectory);
+
+        Assert.False(store.IsApiKeyConfigured(null));
+        Assert.False(store.IsApiKeyConfigured(""));
+        Assert.False(store.IsApiKeyConfigured("sk-proj-yourapikey"));
+    }
+
+    [Fact]
+    public void IsApiKeyConfigured_ReturnsTrueForConfiguredKey()
+    {
+        var store = new SecureSettingsStore(_tempDirectory);
+
+        Assert.True(store.IsApiKeyConfigured("sk-live-real-key"));
+    }
+
+    [Fact]
+    public async Task TryResolveDisplayKeyAsync_ReturnsConfiguredKeyFromJson()
+    {
+        var store = new SecureSettingsStore(_tempDirectory);
+
+        var key = await store.TryResolveDisplayKeyAsync("sk-live-real-key");
+
+        Assert.Equal("sk-live-real-key", key);
+    }
+
+    [Fact]
+    public async Task TryResolveDisplayKeyAsync_ReturnsNullWhenNotConfigured()
+    {
+        var store = new SecureSettingsStore(_tempDirectory);
+
+        var key = await store.TryResolveDisplayKeyAsync(null);
+
+        Assert.Null(key);
     }
 }
 
@@ -86,5 +199,177 @@ public class OpenAiModelProfilesTests
         var settings = new AzureOpenAISettings { Model = "gpt-realtime-whisper" };
         var json = OpenAiRealtimeTranscriptionSession.BuildSessionUpdateJson(settings);
         Assert.Contains("\"model\":\"gpt-realtime-whisper\"", json, StringComparison.Ordinal);
+    }
+}
+
+public class TranscriptionOutputLanguageServiceTests
+{
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("https://api.openai.com", true)]
+    [InlineData("https://myopenai.openai.com/", true)]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", false)]
+    public void IsOpenAiEndpoint_DetectsEndpoint(string endpoint, bool expected)
+    {
+        Assert.Equal(expected, TranscriptionOutputLanguageService.IsOpenAiEndpoint(endpoint));
+    }
+
+    [Theory]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", false)]
+    [InlineData("https://api.openai.com", true)]
+    public void IsOutputLanguageSupported_MatchesOpenAi(string endpoint, bool expected)
+    {
+        var settings = new AppSettings { AzureOpenAI = new AzureOpenAISettings { Endpoint = endpoint } };
+        Assert.Equal(expected, TranscriptionOutputLanguageService.IsOutputLanguageSupported(settings));
+    }
+
+    [Fact]
+    public void GetOutputLanguage_ReturnsNullForSameAsSpoken()
+    {
+        var t = new TranslationSettings { Mode = "SameAsSpoken", TargetLanguage = "en" };
+        Assert.Null(TranscriptionOutputLanguageService.GetOutputLanguage(t));
+    }
+
+    [Fact]
+    public void GetOutputLanguage_ReturnsTargetForFixedMode()
+    {
+        var t = new TranslationSettings { Mode = "Fixed", TargetLanguage = "EN" };
+        Assert.Equal("en", TranscriptionOutputLanguageService.GetOutputLanguage(t));
+    }
+
+    [Theory]
+    [InlineData("fr", "fr", false)]
+    [InlineData("fr", "en", true)]
+    [InlineData("fr", null, false)]
+    public void RequiresCrossLingualOutput_DetectsMismatch(string input, string? output, bool expected)
+    {
+        Assert.Equal(expected, TranscriptionOutputLanguageService.RequiresCrossLingualOutput(input, output));
+    }
+
+    [Theory]
+    [InlineData("he", "Hebrew")]
+    [InlineData("fr", "French")]
+    [InlineData("xx", "English")]
+    public void MapIsoToLanguageName_MapsCodes(string iso, string expected)
+    {
+        Assert.Equal(expected, TranscriptionOutputLanguageService.MapIsoToLanguageName(iso));
+    }
+
+    [Fact]
+    public void GetInputLanguage_UsesManualLanguageInManualMode()
+    {
+        var azure = new AzureOpenAISettings
+        {
+            LanguageMode = "Manual",
+            ManualLanguage = "HE",
+            Language = "fr"
+        };
+        Assert.Equal("he", TranscriptionOutputLanguageService.GetInputLanguage(azure));
+    }
+}
+
+public class TranscriptionStrategyResolverTests
+{
+    private static AzureOpenAISettings OpenAi(string model = "whisper-1") =>
+        new() { Endpoint = "", Model = model };
+
+    private static TranslationSettings FixedOutput(string lang) =>
+        new() { Mode = "Fixed", TargetLanguage = lang, Enabled = true };
+
+    [Fact]
+    public void Resolve_OnPrem_AlwaysTranscribe()
+    {
+        var azure = new AzureOpenAISettings
+        {
+            Endpoint = "https://corp.example.com/api/AI/queryAudio",
+            Model = "whisper-1",
+            Prompt = "Custom prompt"
+        };
+        var plan = TranscriptionStrategyResolver.ResolvePlan(azure, FixedOutput("en"), "fr", isRealtime: false);
+        Assert.Equal(TranscriptionApiMode.Transcribe, plan.Mode);
+        Assert.Equal("transcriptions", plan.EndpointPath);
+        Assert.Equal("Custom prompt", plan.EffectivePrompt);
+        Assert.Null(plan.OutputLanguage);
+    }
+
+    [Fact]
+    public void Resolve_WhisperToEnglish_UsesTranslationsEndpoint()
+    {
+        var plan = TranscriptionStrategyResolver.ResolvePlan(OpenAi(), FixedOutput("en"), "fr", isRealtime: false);
+        Assert.Equal(TranscriptionApiMode.TranslateToEnglish, plan.Mode);
+        Assert.Equal("translations", plan.EndpointPath);
+        Assert.True(TranscriptionStrategyResolver.OutputAppliedByStt(plan.Mode));
+    }
+
+    [Fact]
+    public void Resolve_Gpt4oCrossLingual_UsesOutputPrompt()
+    {
+        var azure = OpenAi("gpt-4o-transcribe");
+        azure.Prompt = "Bilingual FR+HE dictation.";
+        var plan = TranscriptionStrategyResolver.ResolvePlan(azure, FixedOutput("fr"), "he", isRealtime: false);
+        Assert.Equal(TranscriptionApiMode.TranscribeWithOutputPrompt, plan.Mode);
+        Assert.Contains("Bilingual FR+HE dictation.", plan.EffectivePrompt, StringComparison.Ordinal);
+        Assert.Contains("French", plan.EffectivePrompt, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Resolve_SameLanguage_TranscribeOnly()
+    {
+        var plan = TranscriptionStrategyResolver.ResolvePlan(OpenAi(), FixedOutput("fr"), "fr", isRealtime: false);
+        Assert.Equal(TranscriptionApiMode.Transcribe, plan.Mode);
+        Assert.Equal("transcriptions", plan.EndpointPath);
+    }
+
+    [Fact]
+    public void Resolve_RealtimeCrossLingual_PostTranslationFallback()
+    {
+        var plan = TranscriptionStrategyResolver.ResolvePlan(OpenAi(), FixedOutput("en"), "fr", isRealtime: true);
+        Assert.Equal(TranscriptionApiMode.PostTranslationFallback, plan.Mode);
+    }
+
+    [Fact]
+    public void Resolve_WhisperNonEnglish_Fallback()
+    {
+        var plan = TranscriptionStrategyResolver.ResolvePlan(OpenAi(), FixedOutput("fr"), "he", isRealtime: false);
+        Assert.Equal(TranscriptionApiMode.PostTranslationFallback, plan.Mode);
+        Assert.False(TranscriptionStrategyResolver.OutputAppliedByStt(plan.Mode));
+    }
+
+    [Fact]
+    public void BuildOutputPrompt_PreservesUserPrompt()
+    {
+        var prompt = TranscriptionStrategyResolver.BuildOutputPrompt("Keep talmudic terms.", "he");
+        Assert.Contains("Write all output text in Hebrew", prompt, StringComparison.Ordinal);
+        Assert.StartsWith("Keep talmudic terms.", prompt, StringComparison.Ordinal);
+        Assert.Contains("Hebrew", prompt, StringComparison.Ordinal);
+    }
+}
+
+public class AppSettingsMigrationTests
+{
+    [Fact]
+    public void Load_MigratesEnabledTranslationToFixedMode()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "koli-migrate-" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "appsettings.json");
+        try
+        {
+            File.WriteAllText(path, """
+                {
+                  "Translation": {
+                    "Enabled": true,
+                    "TargetLanguage": "en"
+                  }
+                }
+                """);
+            var settings = AppSettings.Load(path);
+            Assert.Equal("Fixed", settings.Translation.Mode);
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+                Directory.Delete(dir, recursive: true);
+        }
     }
 }

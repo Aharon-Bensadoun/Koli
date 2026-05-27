@@ -6,6 +6,7 @@
     <Application.Resources>
         <ResourceDictionary>
             <controls:BoolNegationConverter x:Key="BoolNegationConverter"/>
+            <controls:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
             <ResourceDictionary.MergedDictionaries>
                 <XamlControlsResources xmlns="using:Microsoft.UI.Xaml.Controls" />
                 <ResourceDictionary Source="Themes/Colors.xaml" />

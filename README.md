@@ -34,7 +34,7 @@ featuring multi-speaker diarization.
 - [Configuration](#-configuration)
 - [Usage](#-usage)
   - [Keyboard Shortcuts](#keyboard-shortcuts)
-  - [Translation](#translation)
+  - [Langue de sortie](#langue-de-sortie)
   - [Text Rewriting](#text-rewriting)
   - [Pending recordings (failed transcriptions)](#pending-recordings-failed-transcriptions)
   - [System Tray](#system-tray)
@@ -61,7 +61,7 @@ featuring multi-speaker diarization.
 | 👥 **Meeting mode** | Multi-speaker meetings with **GPT-4o diarization**, microphone and/or system audio capture, participant management, live colorized transcript, and export to TXT / Markdown / JSON. |
 | 🔊 **System audio capture** | Records what comes out of your speakers (WASAPI loopback) — perfect for transcribing Zoom / Teams / Meet calls without virtual cables. |
 | ✏️ **Professional rewriting** | Automatically rewrites transcribed text in a chosen formality level using OpenAI chat models. |
-| 🌐 **Translation** | Optional post-transcription translation step into any target language. |
+| 🌐 **Langue de sortie** | Choose output language (OpenAI/Azure): native STT routing or transparent LLM fallback. On-prem: spoken language only. |
 | ⌨️ **Auto-typing** | Types transcribed (or rewritten / translated) text directly into the active application window. |
 | 🔒 **Secure key storage** | API keys are encrypted with Windows DPAPI and stored in `Config/api.secret`. |
 | 🪟 **System tray** | Minimises to the system tray; double-click or right-click to restore. |
@@ -134,7 +134,7 @@ All settings live in `Config/appsettings.json`. The file is structured into the 
 | `Language` | string | `"en"` | ISO 639-1 language hint sent to the API (e.g. `"en"`, `"fr"`, `"he"`). Overridden at runtime when `LanguageMode` is `"Auto"`. |
 | `OmitTranscriptionLanguage` | bool | `false` | When `true`, no `language` field is sent to the API, allowing the model to handle mixed-script speech (e.g. French + Hebrew) without forcing a single language. |
 | `Prompt` | string | *(default voice-dictation prompt)* | Optional prompt to guide transcription style or vocabulary. |
-| `LanguageMode` | string | `"Auto"` | `"Auto"` — language hint follows the active keyboard layout. `"Manual"` — hint is fixed to `ManualLanguage`. Note: this is only an *input-language hint*; to change the **output** language, see [Translation](#translation-section). |
+| `LanguageMode` | string | `"Auto"` | `"Auto"` — language hint follows the active keyboard layout. `"Manual"` — hint is fixed to `ManualLanguage`. Note: this is only an *input-language hint*; to change the **output** language, see [Langue de sortie](#translation-section-langue-de-sortie). |
 | `ManualLanguage` | string | `"en"` | Language hint used when `LanguageMode` is `"Manual"`. |
 | `ProviderId` | int? | `null` | *Ai Nexus on-premise only.* Multipart field `providerId` sent to `queryAudio`. |
 | `TranscriptionPromptId` | int? | `null` | *On-premise only.* Prompt template ID for transcription. |
@@ -268,28 +268,42 @@ If `Endpoint` is set to a URL that does **not** contain `openai.com`, the applic
 | `TranscriptSavePath` | `"Meetings"` | Folder (relative to the executable) where transcripts are saved. |
 | `AutoSaveTranscript` | `true` | When `true`, the transcript is automatically saved (TXT + JSON) when the meeting ends. |
 
-### `Translation` section
+### `Translation` section (langue de sortie)
 
 ```json
 "Translation": {
   "Enabled": false,
   "TargetLanguage": "",
+  "Mode": "SameAsSpoken",
   "Endpoint": "",
   "Model": "gpt-4o-mini"
 }
 ```
 
-By default the application transcribes audio in whatever language the speaker uses. To get the output in a *different* language, opt in by enabling translation and picking a target language (from the **Translation Settings…** menu or directly in the config file). This is independent from `LanguageMode`, which only hints the transcription API about the **input** language.
+Controls the **written output language** (langue de sortie), separate from `LanguageMode` / `ManualLanguage`, which only hint the **spoken** language to the transcriber.
 
 | Key | Default | Description |
 |---|---|---|
-| `Enabled` | `false` | Master switch. When `true` **and** `TargetLanguage` is non-empty, a chat-completion call is made after transcription to translate the text into `TargetLanguage`. |
-| `TargetLanguage` | `""` | ISO 639-1 code of the desired output language (e.g. `"en"`, `"fr"`, `"he"`). Leave empty to disable translation regardless of `Enabled`. |
-| `Endpoint` | `""` | Chat-completion URL. Leave empty to auto-derive from `AzureOpenAI.Endpoint`: OpenAI / Azure endpoint → `https://api.openai.com/v1/chat/completions`; Ai Nexus / on-premise endpoint (`.../api/AI/queryAudio`) → sibling `/api/ai/query`. Override to point at any compatible endpoint. |
-| `Model` | `"gpt-4o-mini"` | Only used for the OpenAI / Azure path. Ignored for Ai Nexus (the server picks its default provider/model). |
-| `ProviderId` | `null` | *Ai Nexus only.* JSON `providerId` sent to `/api/ai/query`. |
+| `Mode` | `"SameAsSpoken"` | `"SameAsSpoken"` — transcribe in the spoken language. `"Fixed"` — request output in `TargetLanguage` (**OpenAI / Azure OpenAI endpoints only**). |
+| `TargetLanguage` | `""` | ISO 639-1 output code when `Mode` is `"Fixed"` (e.g. `"en"`, `"fr"`, `"he"`). |
+| `Enabled` | `false` | Legacy flag kept in sync with `Mode` for older config files. At load time, `Enabled=true` with a non-empty `TargetLanguage` migrates to `Mode=Fixed`. |
+| `Endpoint` | `""` | Chat-completion URL for LLM fallback. Empty → derived from `AzureOpenAI.Endpoint`. |
+| `Model` | `"gpt-4o-mini"` | OpenAI / Azure chat model for fallback translation. |
+| `ProviderId` | `null` | *Ai Nexus only.* `providerId` for `/api/ai/query`. |
 
-> **Why is this separate from `LanguageMode`?** Whisper / `gpt-4o-transcribe`'s `language` parameter is only an *input-language hint* — the model still transcribes in whatever language is actually spoken. To change the **output** language (e.g. speak French → write English), a real translation step is required. The same API key configured for transcription is reused.
+**OpenAI / Azure strategies** (automatic, no extra UI step):
+
+| Situation | Strategy |
+|---|---|
+| Output = spoken language | `/v1/audio/transcriptions` |
+| Output = English, model `whisper-1` | `/v1/audio/translations` (native audio translation) |
+| Output ≠ spoken, model `gpt-4o-transcribe` | `/v1/audio/transcriptions` + enriched prompt |
+| Realtime WebSocket, cross-lingual | Realtime STT + LLM translation per final segment |
+| Other OpenAI/Azure HTTP pairs | Transcription then LLM fallback |
+
+**On-premise endpoints** (URL without `openai.com`, e.g. Ai Nexus `queryAudio`): output-language routing is **disabled**. STT behaviour is unchanged (text in the spoken language). The Home **Sortie** chip is disabled with an explanatory tooltip. Legacy `Enabled` + `TargetLanguage` still triggers post-transcription LLM translation on on-prem if configured.
+
+**Limitations:** `/audio/translations` targets **English only** with `whisper-1`. Realtime cross-lingual output may add slight latency. Prompt-based output on `gpt-4o-transcribe` is best-effort; LLM fallback guarantees the target language when needed.
 
 ### Secure API key storage
 
@@ -329,17 +343,18 @@ These hotkeys work **globally** — even when the application is minimised or in
 | **F7** | Cancel current recording (no transcription) |
 | **F6** | Pause / resume recording |
 
-### Translation
+### Langue de sortie
 
-By default the application writes what you say, in the language you said it. The **chip at the top-left of the window** controls translation:
+The Home bar shows **Sortie** (output) and **Entrée** (input, from the Windows keyboard in Auto mode):
 
-- When translation is **off** (default), the chip shows `Off`.
-- Click the chip to open the **Translation** dialog, check *Translate transcription into another language*, pick a target language, and click **Save**. The chip then shows the target language code (e.g. `EN`).
-- Uncheck the option in the dialog to return to same-language transcription.
+- **Sortie: Auto** — text matches the spoken language (default).
+- Click **Sortie** to open the output-language dialog: *Même langue que parlée* or a fixed language (English, Français, עברית, … or custom ISO code).
+- With OpenAI / Azure OpenAI, Koli routes STT to produce that language when possible (see config table above). Otherwise a silent LLM fallback runs; status stays *Transcribing…* rather than *Translating…*.
+- On on-prem endpoints, **Sortie** is disabled (`N/A`); transcription stays in the spoken language.
 
-From that point on, every transcription is sent through a chat-completion call and the translated text is typed/copied instead of the raw transcription. The same API key (OpenAI or Ai Nexus) is reused — no extra configuration needed.
+Meeting mode shows a read-only **Sortie: …** badge when OpenAI / Azure is configured.
 
-> The `LanguageMode` / `ManualLanguage` fields in `appsettings.json` remain available as advanced, config-only options: they are only hints to the transcriber about the **input** language and do not affect the output language.
+> `LanguageMode` / `ManualLanguage` in `appsettings.json` remain input-language hints only.
 
 ### Text Rewriting
 

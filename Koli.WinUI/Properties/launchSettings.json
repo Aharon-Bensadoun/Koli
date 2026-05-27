@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "Koli.WinUI": {
+      "commandName": "Project",
+      "nativeDebugging": false
+    }
+  }
+}

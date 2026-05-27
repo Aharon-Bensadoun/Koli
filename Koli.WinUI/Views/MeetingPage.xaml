@@ -30,7 +30,16 @@
                 <Button Grid.Column="4" Content="Export" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding ExportCommand}"/>
             </Grid>
             <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextSecondaryBrush}"/>
-            <TextBlock Text="{Binding TimerText}" FontFamily="Cascadia Mono"/>
+            <StackPanel Orientation="Horizontal" Spacing="12">
+                <TextBlock Text="{Binding TimerText}" FontFamily="Cascadia Mono"/>
+                <Border BorderBrush="{StaticResource AccentGlowBrush}"
+                        BorderThickness="1"
+                        CornerRadius="8"
+                        Padding="8,4"
+                        Visibility="{Binding ShowOutputLanguageBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock Text="{Binding OutputLanguageBadge}" FontWeight="SemiBold" Foreground="{StaticResource AccentGlowBrush}"/>
+                </Border>
+            </StackPanel>
         </StackPanel>
 
         <Grid Grid.Row="1" ColumnSpacing="16">

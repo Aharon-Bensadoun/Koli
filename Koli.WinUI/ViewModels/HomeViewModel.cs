@@ -37,7 +37,9 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _statusText = "Ready";
     [ObservableProperty] private string _timerText = "00:00";
     [ObservableProperty] private string _languageLabel = "EN";
-    [ObservableProperty] private string _translationChip = "Off";
+    [ObservableProperty] private string _inputLanguageChip = "FR";
+    [ObservableProperty] private string _outputLanguageChip = "Auto";
+    [ObservableProperty] private bool _isOutputLanguageAvailable = true;
     [ObservableProperty] private string _liveTranscript = "";
     [ObservableProperty] private string _transcriptTitle = "";
     [ObservableProperty] private bool _isRecording;
@@ -72,15 +74,21 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         _dispatcher = dispatcher;
         _getWindowHandle = getWindowHandle;
 
-        RefreshLanguageLabel();
-        RefreshTranslationChip();
+        RefreshLanguageChips();
     }
 
     public void RefreshLanguageLabel() => LanguageLabel = _inputLanguage.GetLanguageButtonText();
-    public void RefreshTranslationChip() =>
-        TranslationChip = _settings.Translation.Enabled && !string.IsNullOrWhiteSpace(_settings.Translation.TargetLanguage)
-            ? _settings.Translation.TargetLanguage.ToUpperInvariant()
-            : "Off";
+
+    public void RefreshLanguageChips()
+    {
+        RefreshLanguageLabel();
+        InputLanguageChip = LanguageLabel;
+        IsOutputLanguageAvailable = TranscriptionOutputLanguageService.IsOutputLanguageSupported(_settings);
+        OutputLanguageChip = TranscriptionOutputLanguageService.GetOutputLanguageChipLabel(_settings);
+    }
+
+    [Obsolete("Use RefreshLanguageChips")]
+    public void RefreshTranslationChip() => RefreshLanguageChips();
 
     [RelayCommand]
     public async Task ToggleRecordingAsync()
@@ -168,8 +176,8 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         try
         {
             _typing.CaptureTargetWindow();
-            _inputLanguage.UpdateFromKeyboard();
-            RefreshLanguageLabel();
+            SyncInputLanguageBeforeRecording();
+            RefreshLanguageChips();
 
             StatusText = "Starting...";
             IsProcessing = true;
@@ -196,7 +204,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             _dictationUsedRealtime = OpenAiModelProfiles.ShouldUseRealtimeTranscription(_settings.AzureOpenAI);
             if (_dictationUsedRealtime)
             {
-                _dictationRealtimeStt = new SpeechToTextService(_settings.AzureOpenAI, apiKey);
+                _dictationRealtimeStt = new SpeechToTextService(_settings.AzureOpenAI, apiKey, _settings.Translation);
                 _dictationRealtimeStt.RealtimeTranscript += OnDictationRealtimeTranscript;
                 _dictationRealtimeStt.ErrorLogging += OnErrorLogging;
                 _dictationRealtimeStt.RequestLogging += OnRequestLogging;
@@ -323,7 +331,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
                 try
                 {
-                    _speechToText = new SpeechToTextService(_settings.AzureOpenAI, apiKey);
+                    _speechToText = new SpeechToTextService(_settings.AzureOpenAI, apiKey, _settings.Translation);
                     _speechToText.TranscriptionReceived += OnTranscriptionReceived;
                     _speechToText.ErrorLogging += OnErrorLogging;
                     _speechToText.ErrorLogging += failureSniffer;
@@ -352,7 +360,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
                     TrySavePendingAudio(collectedAudio, lastTranscriptionError, ref savedAsPending);
             }
 
-            await ApplyTranslationAsync(apiKey);
+            await ApplyTranslationAsync(apiKey, _speechToText?.OutputAlreadyApplied == true || _dictationRealtimeStt?.OutputAlreadyApplied == true);
             await ApplyRewriteAsync(apiKey);
 
             if (_accumulatedTranscription.Length > 0)
@@ -373,8 +381,10 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
                 {
                     if (_typing.RealtimeTypedAnything)
                     {
-                        if ((_settings.Translation.Enabled && !string.IsNullOrWhiteSpace(_settings.Translation.TargetLanguage))
-                            || _settings.Rewrite.Enabled)
+                        var hasOutputTransform = TranscriptionOutputLanguageService.IsOpenAiEndpoint(_settings.AzureOpenAI.Endpoint)
+                            ? TranscriptionOutputLanguageService.GetOutputLanguage(_settings.Translation) != null
+                            : _settings.Translation.Enabled && !string.IsNullOrWhiteSpace(_settings.Translation.TargetLanguage);
+                        if (hasOutputTransform || _settings.Rewrite.Enabled)
                         {
                             _toast.ShowInfo("Realtime", "Translation/Rewrite applied to clipboard only (live typing kept original).");
                         }
@@ -411,15 +421,47 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task ApplyTranslationAsync(string apiKey)
+    private void SyncInputLanguageBeforeRecording()
     {
-        if (!_settings.Translation.Enabled
-            || string.IsNullOrWhiteSpace(_settings.Translation.TargetLanguage)
-            || _accumulatedTranscription.Length == 0)
+        if (_settings.AzureOpenAI.LanguageMode == "Manual"
+            && !string.IsNullOrWhiteSpace(_settings.AzureOpenAI.ManualLanguage))
+        {
+            _settings.AzureOpenAI.Language = _settings.AzureOpenAI.ManualLanguage.Trim().ToLowerInvariant();
+            return;
+        }
+
+        _inputLanguage.UpdateFromKeyboard();
+    }
+
+    private async Task ApplyTranslationAsync(string apiKey, bool outputAlreadyApplied)
+    {
+        if (outputAlreadyApplied)
             return;
 
-        StatusText = "Translating...";
-        _toast.ShowInfo("Koli", "Translation in progress");
+        var isOpenAi = TranscriptionOutputLanguageService.IsOpenAiEndpoint(_settings.AzureOpenAI.Endpoint);
+        var outputLanguage = TranscriptionOutputLanguageService.GetOutputLanguage(_settings.Translation);
+        var needsOutput = isOpenAi
+            ? !string.IsNullOrWhiteSpace(outputLanguage)
+            : _settings.Translation.Enabled && !string.IsNullOrWhiteSpace(_settings.Translation.TargetLanguage);
+
+        if (!needsOutput || _accumulatedTranscription.Length == 0)
+            return;
+
+        var targetLanguage = isOpenAi
+            ? outputLanguage!
+            : _settings.Translation.TargetLanguage;
+
+        var isFallback = isOpenAi
+            && TranscriptionOutputLanguageService.RequiresCrossLingualOutput(
+                _inputLanguage.CurrentLanguageCode,
+                outputLanguage);
+
+        StatusText = "Transcribing...";
+        if (!isFallback)
+        {
+            StatusText = "Translating...";
+            _toast.ShowInfo("Koli", "Translation in progress");
+        }
 
         try
         {
@@ -429,7 +471,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             translationService.ErrorLogging += OnErrorLogging;
 
             var originalText = _accumulatedTranscription.ToString();
-            var translatedText = await translationService.TranslateAsync(originalText, _settings.Translation.TargetLanguage, CancellationToken.None);
+            var translatedText = await translationService.TranslateAsync(originalText, targetLanguage, CancellationToken.None);
 
             translationService.RequestLogging -= OnRequestLogging;
             translationService.ResponseLogging -= OnResponseLogging;
@@ -441,7 +483,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
                 _accumulatedTranscription.Clear();
                 _accumulatedTranscription.Append(translatedText);
             }
-            else
+            else if (!isFallback)
             {
                 _toast.ShowWarning("Translation Warning", "Translation failed, keeping original transcription");
             }
@@ -449,7 +491,8 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _debugLog.LogError($"Translation failed: {ex.Message}", ex);
-            _toast.ShowError("Translation Error", ex.Message);
+            if (!isFallback)
+                _toast.ShowError("Translation Error", ex.Message);
         }
     }
 
@@ -608,17 +651,20 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     }
 
     [RelayCommand]
-    public async Task OpenTranslationSettingsAsync()
+    public async Task OpenOutputLanguageSettingsAsync()
     {
-        var dialog = new Dialogs.TranslationSettingsDialog(_settings.Translation);
+        var dialog = new Dialogs.OutputLanguageSettingsDialog(_settings.Translation, _settings.AzureOpenAI.Endpoint);
         if (MainWindowHolder.Instance?.Content.XamlRoot != null)
             dialog.XamlRoot = MainWindowHolder.Instance.Content.XamlRoot;
         if (await dialog.ShowAsync() == Microsoft.UI.Xaml.Controls.ContentDialogResult.Primary)
         {
             _settings.Save(_configPath);
-            RefreshTranslationChip();
+            RefreshLanguageChips();
         }
     }
+
+    [RelayCommand]
+    public async Task OpenTranslationSettingsAsync() => await OpenOutputLanguageSettingsAsync();
 
     public void Dispose()
     {

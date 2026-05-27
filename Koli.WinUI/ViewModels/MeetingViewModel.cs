@@ -43,6 +43,8 @@ public sealed partial class MeetingViewModel : ObservableObject, IDisposable
     [ObservableProperty] private float _audioLevel;
     [ObservableProperty] private IList<MeetingSegmentViewModel> _segments = new List<MeetingSegmentViewModel>();
     [ObservableProperty] private IList<ParticipantViewModel> _participants = new List<ParticipantViewModel>();
+    [ObservableProperty] private string _outputLanguageBadge = "";
+    [ObservableProperty] private bool _showOutputLanguageBadge;
 
     public IReadOnlyList<string> AudioSources { get; } = ["Microphone", "System Audio", "Mic + System Audio"];
 
@@ -58,6 +60,22 @@ public sealed partial class MeetingViewModel : ObservableObject, IDisposable
         _debugLog = debugLog;
         _toast = toast;
         _dispatcher = dispatcher;
+        RefreshOutputLanguageBadge();
+    }
+
+    private void RefreshOutputLanguageBadge()
+    {
+        ShowOutputLanguageBadge = TranscriptionOutputLanguageService.IsOutputLanguageSupported(_settings);
+        if (!ShowOutputLanguageBadge)
+        {
+            OutputLanguageBadge = "";
+            return;
+        }
+
+        var label = TranscriptionOutputLanguageService.GetOutputLanguageChipLabel(_settings);
+        OutputLanguageBadge = label.Equals("Auto", StringComparison.OrdinalIgnoreCase)
+            ? "Sortie: auto"
+            : $"Sortie: {label}";
     }
 
     [RelayCommand(CanExecute = nameof(CanStart))]
@@ -93,7 +111,7 @@ public sealed partial class MeetingViewModel : ObservableObject, IDisposable
                 _loopbackCapture.AudioLevelChanged += OnAudioLevelChanged;
 
             var meetingSttSettings = OpenAiModelProfiles.CreateMeetingTranscriptionSettings(_settings.AzureOpenAI);
-            var stt = new SpeechToTextService(meetingSttSettings, apiKey);
+            var stt = new SpeechToTextService(meetingSttSettings, apiKey, _settings.Translation);
             stt.RequestLogging += (_, args) => _debugLog.LogRequest(args.Method, args.Url, args.Headers, args.Body);
             stt.ResponseLogging += (_, args) => _debugLog.LogResponse(args.StatusCode, args.StatusMessage, args.Headers, args.Body);
             stt.ErrorLogging += (_, args) => _debugLog.LogError(args.Message, args.Exception);

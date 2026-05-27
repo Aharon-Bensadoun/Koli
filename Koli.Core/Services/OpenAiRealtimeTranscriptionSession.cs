@@ -80,7 +80,8 @@ public sealed class OpenAiRealtimeTranscriptionSession : IAsyncDisposable
         Action<string, string?>? traceRecv,
         CancellationToken cancellationToken,
         bool periodicBufferCommits = false,
-        int periodicCommitIntervalSeconds = 6)
+        int periodicCommitIntervalSeconds = 6,
+        TranscriptionRequestPlan? plan = null)
     {
         _webSocket = new ClientWebSocket();
         _webSocket.Options.SetRequestHeader("Authorization", $"Bearer {_apiKey}");
@@ -98,7 +99,7 @@ public sealed class OpenAiRealtimeTranscriptionSession : IAsyncDisposable
             return;
         }
 
-        var sessionJson = BuildSessionUpdateJson(_settings);
+        var sessionJson = BuildSessionUpdateJson(_settings, plan);
         await SendJsonAsync(sessionJson, traceSend, cancellationToken).ConfigureAwait(false);
 
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
@@ -193,7 +194,7 @@ public sealed class OpenAiRealtimeTranscriptionSession : IAsyncDisposable
     /// <summary>
     /// Builds the initial <c>session.update</c> for <c>/v1/realtime</c> WebSocket connections.
     /// </summary>
-    public static string BuildSessionUpdateJson(AzureOpenAISettings settings)
+    public static string BuildSessionUpdateJson(AzureOpenAISettings settings, TranscriptionRequestPlan? plan = null)
     {
         var format = new JsonObject
         {
@@ -206,8 +207,15 @@ public sealed class OpenAiRealtimeTranscriptionSession : IAsyncDisposable
         {
             ["model"] = transcriptionModel
         };
-        if (!string.IsNullOrWhiteSpace(settings.Language) && !settings.OmitTranscriptionLanguage)
-            transcription["language"] = settings.Language.Trim();
+
+        var languageHint = plan?.InputLanguageHint;
+        if (string.IsNullOrWhiteSpace(languageHint)
+            && !string.IsNullOrWhiteSpace(settings.Language)
+            && !settings.OmitTranscriptionLanguage)
+            languageHint = settings.Language.Trim();
+
+        if (!string.IsNullOrWhiteSpace(languageHint))
+            transcription["language"] = languageHint;
 
         var input = new JsonObject
         {
@@ -234,6 +242,13 @@ public sealed class OpenAiRealtimeTranscriptionSession : IAsyncDisposable
             ["type"] = "realtime",
             ["audio"] = audio
         };
+
+        if (plan != null
+            && plan.Mode == TranscriptionApiMode.TranscribeWithOutputPrompt
+            && !string.IsNullOrWhiteSpace(plan.EffectivePrompt))
+        {
+            session["instructions"] = plan.EffectivePrompt;
+        }
 
         var root = new JsonObject
         {
