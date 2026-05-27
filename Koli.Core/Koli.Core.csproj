@@ -1,0 +1,28 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <RootNamespace>Koli</RootNamespace>
+    <AssemblyName>Koli.Core</AssemblyName>
+    <Version>1.0.0</Version>
+    <Authors>Aharon Bensadoun</Authors>
+    <Company>Aharon Bensadoun</Company>
+    <Product>Koli</Product>
+    <Description>Core business logic for Koli speech transcription.</Description>
+    <Copyright>Copyright © 2026 Aharon Bensadoun. All rights reserved.</Copyright>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Windows.Compatibility" Version="8.0.0" />
+    <PackageReference Include="NAudio" Version="2.2.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Include="Config\appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+</Project>

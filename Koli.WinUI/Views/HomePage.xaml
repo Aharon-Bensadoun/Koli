@@ -1,0 +1,58 @@
+<Page
+    x:Class="Koli.WinUI.Views.HomePage"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <Grid Padding="24" RowSpacing="16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Spacing="12">
+            <Button Content="{Binding TranslationChip}" Command="{Binding OpenTranslationSettingsCommand}"/>
+            <TextBlock Text="{Binding LanguageLabel}" VerticalAlignment="Center" Foreground="{StaticResource AccentGlowBrush}" FontWeight="SemiBold"/>
+            <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
+            <TextBlock Text="{Binding TimerText}" VerticalAlignment="Center" FontFamily="Cascadia Mono" Foreground="{StaticResource TextPrimaryBrush}"/>
+        </StackPanel>
+
+        <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
+            <Grid RowSpacing="12">
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto"/>
+                    <RowDefinition Height="*"/>
+                </Grid.RowDefinitions>
+                <TextBlock Text="{Binding TranscriptTitle}" Style="{StaticResource PageTitleStyle}" FontSize="16"/>
+                <ScrollViewer Grid.Row="1">
+                    <TextBlock Text="{Binding LiveTranscript}"
+                               Style="{StaticResource BodyTextStyle}"
+                               Foreground="{StaticResource TextPrimaryBrush}"/>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="2" ColumnSpacing="16">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <Button Width="64" Height="64" CornerRadius="32"
+                    Command="{Binding ToggleRecordingCommand}"
+                    Background="{StaticResource AccentFillBrush}">
+                <FontIcon Glyph="{Binding RecordButtonGlyph}" FontSize="24" Foreground="White"/>
+            </Button>
+
+            <ProgressBar Grid.Column="1" Value="{Binding AudioLevel, Mode=OneWay}" Maximum="1"
+                         VerticalAlignment="Center" Foreground="{StaticResource AccentGlowBrush}"/>
+
+            <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
+                <TextBlock Text="F9 Start/Stop" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
+                <TextBlock Text="F6 Pause" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
+                <TextBlock Text="F7 Cancel" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
+            </StackPanel>
+        </Grid>
+    </Grid>
+</Page>

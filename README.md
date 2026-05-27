@@ -68,14 +68,14 @@ featuring multi-speaker diarization.
 | 🌍 **Multi-language** | Supports any language recognised by Whisper; the language hint can follow the active keyboard layout automatically. |
 | 🔇 **Hallucination filter** | Detects and silently drops known Whisper hallucinations and repeated/garbled output. |
 | 🖥️ **Debug console** | Built-in console for inspecting every API request and response in real time, with API keys redacted. |
-| 🎨 **Modern UI** | Borderless Windows Forms shell with a dark Violet/Indigo theme, Windows 11 Mica backdrop, and a sidebar navigation (Home / History / Meeting / Debug). |
+| 🎨 **Modern UI** | WinUI 3 unpackaged shell with dark violet theme, Windows 11 Mica backdrop, and NavigationView (Home / History / Meeting / Debug / Settings). |
 | 💾 **Resilient transcription failures** | If the transcription call fails (network outage, invalid API key, API 4xx/5xx, empty response), the captured audio is preserved as a WAV file and surfaced in the History view, where it can be played back, retried, or deleted. |
 
 ---
 
 ## 🔧 Prerequisites
 
-- **Windows 10 / 11** (Windows Forms application; Mica backdrop requires Windows 11 22H2 or later).
+- **Windows 10 / 11** (WinUI 3 unpackaged app; Mica backdrop requires Windows 11 22H2 or later for best results).
 - **.NET 8.0 SDK** — only required to build from source. The published executable is self-contained and ships with the runtime.
 - A working **microphone** (and/or any audio output device for system-audio capture in meeting mode).
 - An **OpenAI API key** (standard OpenAI or Azure OpenAI) **or** access to a compatible on-premise Whisper API.
@@ -102,7 +102,7 @@ featuring multi-speaker diarization.
 4. **Run the application**
 
    ```bash
-   dotnet run
+   dotnet run --project Koli.WinUI/Koli.WinUI.csproj
    ```
 
 On first launch, if no `Config/appsettings.json` exists, a default configuration file is created automatically and a dialog prompts you to enter your API key.
@@ -413,46 +413,31 @@ Meeting mode is dedicated to multi-speaker scenarios (interviews, stand-ups, cal
 
 ```
 Koli/
-├── Config/
-│   ├── AppInfo.cs                # Assembly metadata (version, author, repo URL)
-│   ├── AppSettings.cs            # Configuration model classes
-│   ├── SecureSettingsStore.cs    # DPAPI-based API key encryption/decryption
-│   ├── appsettings.json          # Active configuration file
-│   ├── pending-audio.json        # Index of failed-transcription recordings (auto-generated)
-│   └── PendingAudio/             # WAV files for failed-transcription recordings (auto-generated)
-├── Models/
-│   └── MeetingTranscript.cs      # MeetingSession, Participant, TranscriptSegment
-├── Services/
-│   ├── IAudioCaptureService.cs              # Common audio-capture abstraction
-│   ├── AudioCaptureService.cs               # WASAPI microphone capture (NAudio), pause/resume
-│   ├── SystemAudioCaptureService.cs         # WASAPI loopback (system audio) capture
-│   ├── AudioPlaybackService.cs              # NAudio-based WAV playback for pending recordings
-│   ├── PendingAudioStore.cs                 # On-disk store for failed-transcription recordings
-│   ├── WavWriter.cs                         # Shared RIFF/WAVE header writer (PCM16 mono)
-│   ├── SpeechToTextService.cs               # Transcription via OpenAI / Azure / on-premise; hallucination filter
-│   ├── OpenAiModelProfiles.cs               # Detects OpenAI cloud vs on-premise & Realtime-capable models
-│   ├── OpenAiRealtimeTranscriptionSession.cs# WebSocket Realtime transcription session
-│   ├── RealtimeTranscriptEventParser.cs     # Parses Realtime server events
-│   ├── RealtimeTranscriptEventArgs.cs       # Event types for Realtime deltas
-│   ├── AsyncEnumerableContent.cs            # Streaming multipart HTTP content helper
-│   ├── TextRewriteService.cs                # Professional rewriting via Chat Completions
-│   ├── TextTranslationService.cs            # Post-transcription translation step
-│   ├── MeetingTranscriptionService.cs       # Orchestrates STT + diarization for meetings
-│   ├── SpeakerDiarizationService.cs         # GPT-4o-based speaker labelling
-│   └── TranscriptExportService.cs           # TXT / Markdown / JSON export
-├── UI/
-│   ├── MainForm.cs               # Main window (sidebar nav, dictation view, hotkeys, tray)
-│   ├── MeetingForm.cs            # Meeting view (embedded in MainForm)
-│   ├── ParticipantDialog.cs      # Participant entry dialog
-│   ├── ApiConfigurationDialog.cs # API key / endpoint / model configuration UI
-│   ├── DebugConsole.cs           # Real-time API request/response log
-│   └── AboutDialog.cs            # About / version / contact dialog
-├── Resources/
-│   ├── Koli.ico                  # Application icon (embedded resource)
-│   └── Koli.png                  # Application image
-├── Program.cs                    # Entry point; config loading, secure store init
-├── Koli.csproj                   # Project file (.NET 8.0, Windows, self-contained)
-└── README.md                     # You are here.
+├── Koli.sln
+├── Koli.Core/                    # Config, Models, Services (no UI)
+│   ├── Config/
+│   ├── Models/
+│   └── Services/
+├── Koli.Platform/                # Win32 interop: hotkeys, tray, typing, toasts, input language
+├── Koli.WinUI/                   # WinUI 3 unpackaged app (XAML + MVVM)
+│   ├── Views/                    # Home, History, Meeting, Debug, Settings pages
+│   ├── ViewModels/
+│   ├── Dialogs/
+│   ├── Themes/                   # Dark violet Fluent theme
+│   └── Assets/                   # Koli.ico, Koli.png
+├── Koli.Core.Tests/
+└── README.md
+```
+
+Runtime data (next to the executable after first run):
+
+```
+Config/
+├── appsettings.json
+├── api.secret                    # DPAPI-encrypted API key
+├── history.json
+├── pending-audio.json
+└── PendingAudio/                 # Failed-transcription WAV files
 ```
 
 ---
@@ -468,45 +453,39 @@ Koli/
 ### Run from source
 
 ```bash
-dotnet run
+dotnet build Koli.sln
+dotnet run --project Koli.WinUI/Koli.WinUI.csproj
 ```
 
-Or, with an explicit build step:
-
-```bash
-dotnet build
-dotnet run --no-build
-```
-
-In development the application looks for `Config/appsettings.json` relative to the executable output directory. The `.csproj` is configured to copy the file automatically (`<CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>`).
+In development the application looks for `Config/appsettings.json` relative to the executable output directory. `Koli.Core` copies the template automatically (`CopyToOutputDirectory=PreserveNewest`).
 
 ### Code conventions
 
 - C# 12 / .NET 8, nullable enabled.
-- One service per file, dependency-injected through constructors.
-- UI lives strictly under `UI/`; business logic under `Services/`; configuration models under `Config/`; data records under `Models/`.
-- API keys must **never** be logged or surfaced in exception messages; use `SecureSettingsStore` for persistence and the redaction helpers in `DebugConsole` when logging requests.
+- One service per file, dependency-injected through constructors (`Microsoft.Extensions.DependencyInjection` in `App.xaml.cs`).
+- UI lives under `Koli.WinUI/` (XAML + ViewModels); business logic under `Koli.Core/Services/`; configuration under `Koli.Core/Config/`; platform interop under `Koli.Platform/`.
+- API keys must **never** be logged or surfaced in exception messages; use `SecureSettingsStore` for persistence and `DebugLogService` redaction when logging requests.
 
 ---
 
 ## 🔨 Production Build
 
-Build a self-contained, single-file executable for Windows x64:
+Build a self-contained, single-file **unpackaged WinUI 3** executable for Windows x64:
 
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained true /p:PublishSingleFile=true
+dotnet publish Koli.WinUI/Koli.WinUI.csproj -c Release -r win-x64 /p:PublishSingleFile=true /p:SelfContained=true
 ```
 
 The output is placed in:
 
 ```
-bin/Release/net8.0-windows/win-x64/publish/Koli.exe
+Koli.WinUI/bin/Release/net8.0-windows10.0.22621.0/win-x64/publish/Koli.exe
 ```
 
 **Deployment checklist:**
 
-- Place `Koli.exe` in any folder.
-- Create a `Config/` subfolder next to the executable and put your `appsettings.json` inside it.
+- Place `Koli.exe` in any folder (~260 MB single-file bundle with .NET + Windows App SDK).
+- `Config/appsettings.json` and `Assets/` are copied beside the executable automatically; edit settings or enter your API key on first launch.
 - On first launch, the API key is encrypted and stored as `Config/api.secret`.
 
 **Build options reference:**
@@ -524,8 +503,12 @@ bin/Release/net8.0-windows/win-x64/publish/Koli.exe
 
 | Package | Version | Purpose |
 |---|---|---|
-| [`Microsoft.Extensions.Hosting`](https://www.nuget.org/packages/Microsoft.Extensions.Hosting) | 8.0.0 | Hosting infrastructure |
-| [`Microsoft.Windows.Compatibility`](https://www.nuget.org/packages/Microsoft.Windows.Compatibility) | 8.0.0 | Windows-specific APIs (DPAPI, registry, etc.) |
+| [`Microsoft.WindowsAppSDK`](https://www.nuget.org/packages/Microsoft.WindowsAppSDK) | 1.6.x | WinUI 3 runtime |
+| [`CommunityToolkit.Mvvm`](https://www.nuget.org/packages/CommunityToolkit.Mvvm) | 8.4.x | ViewModels |
+| [`CommunityToolkit.WinUI.Controls.SettingsControls`](https://www.nuget.org/packages/CommunityToolkit.WinUI.Controls.SettingsControls) | 8.1.x | Settings UI helpers |
+| [`WinUIEx`](https://www.nuget.org/packages/WinUIEx) | 2.3.x | Window/tray helpers |
+| [`Microsoft.Extensions.DependencyInjection`](https://www.nuget.org/packages/Microsoft.Extensions.DependencyInjection) | 8.0.x | DI container |
+| [`Microsoft.Windows.Compatibility`](https://www.nuget.org/packages/Microsoft.Windows.Compatibility) | 8.0.x | Windows-specific APIs (DPAPI, etc.) |
 | [`NAudio`](https://www.nuget.org/packages/NAudio) | 2.2.1 | WASAPI microphone & loopback capture, WAV header writing |
 
 The OpenAI Realtime WebSocket session is implemented directly on top of `System.Net.WebSockets.ClientWebSocket` — no third-party OpenAI SDK is required.
@@ -586,7 +569,7 @@ Planned / under consideration:
 - Azure OpenAI Realtime WebSocket support.
 - Per-meeting custom diarization model selection.
 - Live translation in meeting mode.
-- macOS / Linux ports (would require replacing WASAPI, DPAPI, and Windows Forms layers).
+- macOS / Linux ports (would require replacing WASAPI, DPAPI, and Win32 platform layers).
 
 Suggestions and feature requests are welcome — see [Contributing](#-contributing).
 
