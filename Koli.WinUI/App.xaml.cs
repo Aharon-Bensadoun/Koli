@@ -22,9 +22,12 @@ public partial class App : Application
         {
             try
             {
-                var logPath = Path.Combine(AppContext.BaseDirectory, "Config", "startup-error.log");
-                Directory.CreateDirectory(Path.GetDirectoryName(logPath)!);
-                File.AppendAllText(logPath, $"[{DateTime.Now:O}] UNHANDLED: {e.Exception}{Environment.NewLine}");
+                var logDir = IsPackagedApp()
+                    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Koli", "Config")
+                    : Path.Combine(AppContext.BaseDirectory, "Config");
+                Directory.CreateDirectory(logDir);
+                File.AppendAllText(Path.Combine(logDir, "startup-error.log"),
+                    $"[{DateTime.Now:O}] UNHANDLED: {e.Exception}{Environment.NewLine}");
             }
             catch { /* ignore */ }
             try { Services?.DebugLog.LogError("Unhandled exception", e.Exception); }
@@ -36,9 +39,12 @@ public partial class App : Application
     {
         AppInfo.Initialize(typeof(App).Assembly);
 
-        var baseDirectory = AppContext.BaseDirectory;
-        var configPath = Path.Combine(baseDirectory, "Config", "appsettings.json");
-        EnsureConfigFile(configPath);
+        var installDirectory = AppContext.BaseDirectory;
+        var dataDirectory = IsPackagedApp()
+            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Koli")
+            : installDirectory;
+        var configPath = Path.Combine(dataDirectory, "Config", "appsettings.json");
+        EnsureConfigFile(configPath, installDirectory);
 
         AppSettings settings;
         try
@@ -61,7 +67,7 @@ public partial class App : Application
             catch { /* ignore */ }
         }
 
-        var paths = new AppPaths(baseDirectory, configPath);
+        var paths = new AppPaths(dataDirectory, configPath);
         var services = new ServiceCollection();
         services.AddKoliServices(settings, paths);
         services.AddSingleton<MainWindow>();
@@ -110,17 +116,29 @@ public partial class App : Application
         Services.InputLanguage.StartMonitoring();
     }
 
-    private static void EnsureConfigFile(string configPath)
+    private static void EnsureConfigFile(string configPath, string installDirectory)
     {
         if (File.Exists(configPath))
             return;
 
-        var sourceConfigPath = Path.Combine("Config", "appsettings.json");
+        var sourceConfigPath = Path.Combine(installDirectory, "Config", "appsettings.json");
         if (!File.Exists(sourceConfigPath))
             return;
 
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
         File.Copy(sourceConfigPath, configPath, overwrite: true);
+    }
+
+    private static bool IsPackagedApp()
+    {
+        try
+        {
+            return Windows.ApplicationModel.Package.Current != null;
+        }
+        catch
+        {
+            return false;
+        }
     }
 
     private static async Task<Microsoft.UI.Xaml.XamlRoot?> WaitForXamlRootAsync(Window window)

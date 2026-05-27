@@ -151,3 +151,6 @@ $RECYCLE.BIN/
 # Uncomment the line below if appsettings.json contains sensitive information
 # Config/appsettings.json
 
+## MSIX signing certificates
+*.pfx
+

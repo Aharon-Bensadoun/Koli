@@ -12,7 +12,7 @@
     <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
     <UseWinUI>true</UseWinUI>
     <EnableMsixTooling>true</EnableMsixTooling>
-    <WindowsPackageType>None</WindowsPackageType>
+    <WindowsPackageType Condition="'$(WindowsPackageType)' == ''">None</WindowsPackageType>
     <WindowsAppSDKSelfContained>true</WindowsAppSDKSelfContained>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -27,6 +27,16 @@
     <Copyright>Copyright © 2026 Aharon Bensadoun. All rights reserved.</Copyright>
     <ApplicationIcon>Assets\Koli.ico</ApplicationIcon>
     <AssemblyName>Koli</AssemblyName>
+  </PropertyGroup>
+
+  <!-- MSIX packaging (activated with: -p:WindowsPackageType=MSIX) -->
+  <PropertyGroup Condition="'$(WindowsPackageType)' != 'None'">
+    <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
+    <PackageCertificateThumbprint>B85E7F065D899CC5BA2A144C58BC9EF45CD8BDDA</PackageCertificateThumbprint>
+    <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
+    <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
+    <AppxBundle>Never</AppxBundle>
+    <UapAppxPackageBuildMode>SideloadOnly</UapAppxPackageBuildMode>
   </PropertyGroup>
 
   <ItemGroup>

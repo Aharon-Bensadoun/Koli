@@ -38,6 +38,6 @@
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
     <Capability Name="internetClient" />
-    <Capability Name="microphone" />
+    <DeviceCapability Name="microphone" />
   </Capabilities>
 </Package>

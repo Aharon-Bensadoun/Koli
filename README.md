@@ -84,6 +84,29 @@ featuring multi-speaker diarization.
 
 ## 📦 Installation
 
+### Option A — Install from MSIX package (recommended)
+
+Download the latest `.msix` package from [Releases](https://github.com/Aharon-Bensadoun/Koli/releases).
+
+1. **Install the signing certificate** (first time only):
+   - Double-click `Koli.WinUI_1.0.0.0_x64.cer`
+   - Click **Install Certificate…** → **Local Machine** → **Place all certificates in the following store** → **Browse** → **Trusted People** → **OK** → **Next** → **Finish**.
+   - Or run in an elevated PowerShell:
+     ```powershell
+     Import-Certificate -FilePath .\Koli.WinUI_1.0.0.0_x64.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+     ```
+
+2. **Install the app**:
+   - Double-click `Koli.WinUI_1.0.0.0_x64.msix` and click **Install**.
+   - Or run the included script:
+     ```powershell
+     .\Install.ps1
+     ```
+
+3. Launch **Koli** from the Start menu. On first launch, a dialog prompts you to enter your API key.
+
+### Option B — Install from source
+
 1. **Clone the repository**
 
    ```bash
@@ -485,23 +508,37 @@ In development the application looks for `Config/appsettings.json` relative to t
 
 ## 🔨 Production Build
 
-Build a self-contained, single-file **unpackaged WinUI 3** executable for Windows x64:
+### MSIX package (recommended for distribution)
+
+Build a signed MSIX installer for sideloading:
 
 ```bash
-dotnet publish Koli.WinUI/Koli.WinUI.csproj -c Release -r win-x64 /p:PublishSingleFile=true /p:SelfContained=true
+dotnet publish Koli.WinUI/Koli.WinUI.csproj -c Release -r win-x64 -p:WindowsPackageType=MSIX
 ```
 
 The output is placed in:
 
 ```
-Koli.WinUI/bin/Release/net8.0-windows10.0.22621.0/win-x64/publish/Koli.exe
+Koli.WinUI/bin/x64/Release/net8.0-windows10.0.22621.0/win-x64/AppPackages/
+└── Koli.WinUI_1.0.0.0_x64_Test/
+    ├── Koli.WinUI_1.0.0.0_x64.msix   (~104 MB)
+    ├── Koli.WinUI_1.0.0.0_x64.cer    (signing certificate)
+    └── Install.ps1                     (automated installer script)
 ```
 
-**Deployment checklist:**
+Distribute the entire `…_Test/` folder. Users install the certificate once, then double-click the `.msix` — see [Installation](#-installation).
 
-- Place `Koli.exe` in any folder (~260 MB single-file bundle with .NET + Windows App SDK).
-- `Config/appsettings.json` and `Assets/` are copied beside the executable automatically; edit settings or enter your API key on first launch.
-- On first launch, the API key is encrypted and stored as `Config/api.secret`.
+> **Note:** WinUI 3 apps require native Windows App SDK DLLs alongside the executable, so `PublishSingleFile=true` is **not supported**. MSIX is the recommended single-file distribution format.
+
+### Unpackaged folder (portable)
+
+Build a self-contained unpackaged folder for Windows x64:
+
+```bash
+dotnet publish Koli.WinUI/Koli.WinUI.csproj -c Release -r win-x64
+```
+
+The output is a `publish/` folder containing `Koli.exe` plus all required DLLs (~390 files). Copy the entire folder anywhere and run `Koli.exe` directly.
 
 **Build options reference:**
 
@@ -509,8 +546,7 @@ Koli.WinUI/bin/Release/net8.0-windows10.0.22621.0/win-x64/publish/Koli.exe
 |---|---|
 | `-c Release` | Optimised Release build |
 | `-r win-x64` | Windows 64-bit runtime identifier |
-| `--self-contained true` | Bundle the .NET runtime inside the executable |
-| `/p:PublishSingleFile=true` | Produce a single `.exe` file |
+| `-p:WindowsPackageType=MSIX` | Produce a signed `.msix` installer instead of a loose folder |
 
 ---
 
@@ -534,6 +570,7 @@ The OpenAI Realtime WebSocket session is implemented directly on top of `System.
 
 ### Application does not start
 
+- If you published with `PublishSingleFile=true`, that is the problem: WinUI 3 requires native Windows App SDK DLLs alongside the executable. Use the MSIX build or the unpackaged folder build instead — see [Production Build](#-production-build).
 - Ensure `Config/appsettings.json` exists (it is created automatically on first run).
 - Check that `ApiKey` and, if applicable, `Endpoint` are correctly set.
 - If not using the self-contained build, verify that the .NET 8.0 Runtime is installed.
