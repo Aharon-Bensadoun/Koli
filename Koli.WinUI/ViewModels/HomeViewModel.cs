@@ -653,7 +653,10 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     [RelayCommand]
     public async Task OpenOutputLanguageSettingsAsync()
     {
-        var dialog = new Dialogs.OutputLanguageSettingsDialog(_settings.Translation, _settings.AzureOpenAI.Endpoint);
+        var dialog = new Dialogs.OutputLanguageSettingsDialog(
+            _settings.Translation,
+            _settings.AzureOpenAI.Endpoint,
+            _settings.AzureOpenAI.Language);
         if (MainWindowHolder.Instance?.Content.XamlRoot != null)
             dialog.XamlRoot = MainWindowHolder.Instance.Content.XamlRoot;
         if (await dialog.ShowAsync() == Microsoft.UI.Xaml.Controls.ContentDialogResult.Primary)

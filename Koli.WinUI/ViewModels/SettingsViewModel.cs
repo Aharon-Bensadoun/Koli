@@ -21,10 +21,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _rewriteEnabled;
     [ObservableProperty] private string _rewriteLevel = "Professional";
     [ObservableProperty] private bool _translationEnabled;
-    [ObservableProperty] private string _translationTarget = "";
+    [ObservableProperty] private string _translationTarget = "en";
     [ObservableProperty] private string _outputLanguageMode = "SameAsSpoken";
     [ObservableProperty] private bool _isOutputLanguageAvailable = true;
     [ObservableProperty] private bool _showOnPremOutputLanguageNotice;
+    [ObservableProperty] private bool _isTargetLanguageEnabled;
+    [ObservableProperty] private LanguagePickerItem? _selectedTargetLanguage;
+    [ObservableProperty] private OutputLanguageModeItem? _selectedOutputLanguageMode;
     [ObservableProperty] private bool _typingAutoSpace = true;
     [ObservableProperty] private bool _typingInActiveWindow = true;
     [ObservableProperty] private bool _typingStreamingMode;
@@ -32,7 +35,13 @@ public sealed partial class SettingsViewModel : ObservableObject
     public IReadOnlyList<string> RewriteLevels { get; } =
         ["Casual", "Polished", "Professional", "Formal", "Executive"];
 
-    public IReadOnlyList<string> OutputLanguageModes { get; } = ["SameAsSpoken", "Fixed"];
+    public IReadOnlyList<OutputLanguageModeItem> OutputLanguageModes { get; } =
+    [
+        new() { Label = "Same as spoken", Value = "SameAsSpoken" },
+        new() { Label = "Fixed language", Value = "Fixed" }
+    ];
+
+    public IReadOnlyList<LanguagePickerItem> TargetLanguageOptions { get; private set; } = [];
 
     public SettingsViewModel(AppSettings settings, SecureSettingsStore secureStore, IAppPaths paths, ToastNotificationService toast, InputLanguageService inputLanguage)
     {
@@ -50,13 +59,49 @@ public sealed partial class SettingsViewModel : ObservableObject
         RewriteEnabled = _settings.Rewrite.Enabled;
         RewriteLevel = _settings.Rewrite.ProfessionalismLevel;
         TranslationEnabled = _settings.Translation.Enabled;
-        TranslationTarget = _settings.Translation.TargetLanguage;
+        TranslationTarget = string.IsNullOrWhiteSpace(_settings.Translation.TargetLanguage)
+            ? "en"
+            : _settings.Translation.TargetLanguage.Trim().ToLowerInvariant();
         OutputLanguageMode = _settings.Translation.Mode;
         IsOutputLanguageAvailable = TranscriptionOutputLanguageService.IsOutputLanguageSupported(_settings);
         ShowOnPremOutputLanguageNotice = !IsOutputLanguageAvailable;
         TypingAutoSpace = _settings.Typing.AutoSpace;
         TypingInActiveWindow = _settings.Typing.TypeInActiveWindow;
         TypingStreamingMode = _settings.Typing.StreamingMode;
+        RefreshTargetLanguageOptions();
+        SelectedOutputLanguageMode = OutputLanguageModes.FirstOrDefault(m =>
+            m.Value.Equals(OutputLanguageMode, StringComparison.OrdinalIgnoreCase))
+            ?? OutputLanguageModes[0];
+        UpdateTargetLanguageEnabled();
+    }
+
+    private void RefreshTargetLanguageOptions()
+    {
+        var displayLocale = _settings.AzureOpenAI.Language;
+        TargetLanguageOptions = OutputLanguageCatalog.GetPresetOptions(displayLocale)
+            .Select(p => new LanguagePickerItem { Label = p.DisplayName, Code = p.Code })
+            .ToList();
+
+        var code = string.IsNullOrWhiteSpace(TranslationTarget) ? "en" : TranslationTarget.Trim().ToLowerInvariant();
+        SelectedTargetLanguage = TargetLanguageOptions.FirstOrDefault(o => o.Code == code)
+            ?? TargetLanguageOptions.FirstOrDefault(o => o.Code == "en");
+    }
+
+    private void UpdateTargetLanguageEnabled() =>
+        IsTargetLanguageEnabled = IsOutputLanguageAvailable
+            && OutputLanguageMode.Equals("Fixed", StringComparison.OrdinalIgnoreCase);
+
+    partial void OnSelectedTargetLanguageChanged(LanguagePickerItem? value)
+    {
+        if (value != null)
+            TranslationTarget = value.Code;
+    }
+
+    partial void OnSelectedOutputLanguageModeChanged(OutputLanguageModeItem? value)
+    {
+        if (value != null)
+            OutputLanguageMode = value.Value;
+        UpdateTargetLanguageEnabled();
     }
 
     [RelayCommand]
@@ -65,7 +110,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.Rewrite.Enabled = RewriteEnabled;
         _settings.Rewrite.ProfessionalismLevel = RewriteLevel;
         _settings.Translation.Enabled = TranslationEnabled;
-        _settings.Translation.TargetLanguage = TranslationTarget;
+        _settings.Translation.TargetLanguage = OutputLanguageMode.Equals("Fixed", StringComparison.OrdinalIgnoreCase)
+            ? (SelectedTargetLanguage?.Code ?? TranslationTarget)
+            : "";
         _settings.Translation.Mode = OutputLanguageMode;
         TranscriptionOutputLanguageService.SyncLegacyEnabledFlag(_settings.Translation);
         _settings.Typing.AutoSpace = TypingAutoSpace;

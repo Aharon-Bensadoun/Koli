@@ -14,20 +14,13 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
     private readonly TextBox _customIsoBox;
     private readonly TextBlock _unavailableMessage;
 
-    private static readonly (string Label, string Code)[] PresetLanguages =
-    [
-        ("English", "en"),
-        ("Français", "fr"),
-        ("עברית", "he"),
-        ("Deutsch", "de"),
-        ("Español", "es"),
-        ("Italiano", "it")
-    ];
+    private readonly IReadOnlyList<(string Label, string Code)> _presetLanguages;
 
-    public OutputLanguageSettingsDialog(TranslationSettings settings, string? apiEndpoint)
+    public OutputLanguageSettingsDialog(TranslationSettings settings, string? apiEndpoint, string? displayLocale = null)
     {
         _settings = settings;
         _isAvailable = TranscriptionOutputLanguageService.IsOpenAiEndpoint(apiEndpoint);
+        _presetLanguages = OutputLanguageCatalog.GetPresetOptions(displayLocale);
 
         Title = "Langue de sortie";
         PrimaryButtonText = "Save";
@@ -56,11 +49,13 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
             Header = "Langue",
             HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Stretch,
             IsEnabled = _isAvailable && isFixed,
-            ItemsSource = PresetLanguages.Select(p => p.Label).ToList()
+            ItemsSource = _presetLanguages.Select(p => p.Label).ToList()
         };
 
         var currentCode = (_settings.TargetLanguage ?? "").Trim().ToLowerInvariant();
-        var presetIndex = Array.FindIndex(PresetLanguages, p => p.Code == currentCode);
+        if (string.IsNullOrWhiteSpace(currentCode))
+            currentCode = "en";
+        var presetIndex = _presetLanguages.ToList().FindIndex(p => p.Code == currentCode);
         if (presetIndex >= 0)
             _languageCombo.SelectedIndex = presetIndex;
 
@@ -133,8 +128,8 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
         var code = _customIsoBox.Text.Trim().ToLowerInvariant();
         if (string.IsNullOrWhiteSpace(code)
             && _languageCombo.SelectedIndex >= 0
-            && _languageCombo.SelectedIndex < PresetLanguages.Length)
-            code = PresetLanguages[_languageCombo.SelectedIndex].Code;
+            && _languageCombo.SelectedIndex < _presetLanguages.Count)
+            code = _presetLanguages[_languageCombo.SelectedIndex].Code;
 
         _settings.Mode = "Fixed";
         _settings.TargetLanguage = code;

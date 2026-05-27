@@ -103,6 +103,6 @@ public static class TranscriptionOutputLanguageService
         if (output == null)
             return "Auto";
 
-        return output.ToUpperInvariant();
+        return OutputLanguageCatalog.GetDisplayName(output, GetInputLanguage(settings));
     }
 }

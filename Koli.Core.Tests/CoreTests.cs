@@ -255,6 +255,20 @@ public class TranscriptionOutputLanguageServiceTests
         Assert.Equal(expected, TranscriptionOutputLanguageService.MapIsoToLanguageName(iso));
     }
 
+    [Theory]
+    [InlineData("en", "en", "English")]
+    [InlineData("fr", "en", "French")]
+    [InlineData("he", "en", "Hebrew")]
+    [InlineData("en", "fr", "Anglais")]
+    [InlineData("fr", "fr", "Français")]
+    [InlineData("he", "fr", "Hébreu")]
+    [InlineData("en", "he", "אנגלית")]
+    [InlineData("fr", "he", "צרפתית")]
+    public void OutputLanguageCatalog_GetDisplayName_Localizes(string code, string locale, string expected)
+    {
+        Assert.Equal(expected, OutputLanguageCatalog.GetDisplayName(code, locale));
+    }
+
     [Fact]
     public void GetInputLanguage_UsesManualLanguageInManualMode()
     {

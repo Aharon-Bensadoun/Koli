@@ -14,17 +14,18 @@
             <TextBlock Text="Rewrite style"/>
             <ComboBox ItemsSource="{Binding RewriteLevels}" SelectedItem="{Binding RewriteLevel, Mode=TwoWay}"/>
 
-            <TextBlock Text="Langue de sortie" FontWeight="SemiBold"/>
-            <TextBlock Text="Disponible avec OpenAI / Azure OpenAI uniquement."
+            <TextBlock Text="Output language" FontWeight="SemiBold"/>
+            <TextBlock Text="Available with OpenAI / Azure OpenAI only."
                        Foreground="{StaticResource TextSecondaryBrush}"
                        Visibility="{Binding ShowOnPremOutputLanguageNotice, Converter={StaticResource BoolToVisibilityConverter}}"/>
             <ComboBox Header="Mode"
                       ItemsSource="{Binding OutputLanguageModes}"
-                      SelectedItem="{Binding OutputLanguageMode, Mode=TwoWay}"
+                      SelectedItem="{Binding SelectedOutputLanguageMode, Mode=TwoWay}"
                       IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"/>
-            <TextBlock Text="Langue cible (ISO 639-1, ex. en, fr, he)"/>
-            <TextBox Text="{Binding TranslationTarget, Mode=TwoWay}"
-                     IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"/>
+            <ComboBox Header="Target language"
+                      ItemsSource="{Binding TargetLanguageOptions}"
+                      SelectedItem="{Binding SelectedTargetLanguage, Mode=TwoWay}"
+                      IsEnabled="{Binding IsTargetLanguageEnabled, Mode=OneWay}"/>
 
             <TextBlock Text="Typing" FontWeight="SemiBold"/>
             <ToggleSwitch Header="Auto space" IsOn="{Binding TypingAutoSpace, Mode=TwoWay}"/>
