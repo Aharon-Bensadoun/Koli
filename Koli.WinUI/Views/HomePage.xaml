@@ -13,20 +13,28 @@
         <StackPanel Orientation="Horizontal" Spacing="12">
             <Button Command="{Binding OpenOutputLanguageSettingsCommand}"
                     IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"
-                    ToolTipService.ToolTip="Langue du texte produit (OpenAI / Azure OpenAI uniquement)">
+                    ToolTipService.ToolTip="Output text language (OpenAI / Azure OpenAI only)">
                 <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="Sortie:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                    <TextBlock Text="Output:" Foreground="{StaticResource TextSecondaryBrush}"/>
                     <TextBlock Text="{Binding OutputLanguageChip}" FontWeight="SemiBold"/>
                     <FontIcon Glyph="&#xE70D;" FontSize="10" VerticalAlignment="Center"/>
                 </StackPanel>
             </Button>
             <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
-                        ToolTipService.ToolTip="Langue détectée depuis le clavier Windows">
-                <TextBlock Text="Entrée:" Foreground="{StaticResource TextSecondaryBrush}"/>
+                        ToolTipService.ToolTip="Language detected from the Windows keyboard">
+                <TextBlock Text="Input:" Foreground="{StaticResource TextSecondaryBrush}"/>
                 <TextBlock Text="{Binding InputLanguageChip}" Foreground="{StaticResource AccentGlowBrush}" FontWeight="SemiBold"/>
             </StackPanel>
             <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
             <TextBlock Text="{Binding TimerText}" VerticalAlignment="Center" FontFamily="Cascadia Mono" Foreground="{StaticResource TextPrimaryBrush}"/>
+            <Border Background="{StaticResource AccentPrimaryBrush}" CornerRadius="6" Padding="8,4"
+                    Visibility="{Binding IsAssistantRecording, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Text="Assistant" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+            </Border>
+            <Border Background="{StaticResource RecordingPrimaryBrush}" CornerRadius="6" Padding="8,4"
+                    Visibility="{Binding IsDictationRecording, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                <TextBlock Text="REC" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
+            </Border>
         </StackPanel>
 
         <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
@@ -61,7 +69,8 @@
                          VerticalAlignment="Center" Foreground="{StaticResource AccentGlowBrush}"/>
 
             <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
-                <TextBlock Text="F9 Start/Stop" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
+                <TextBlock Text="F9 Start/Stop dictation" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
+                <TextBlock Text="Alt Gr Start/Stop assistant" Foreground="{StaticResource AccentGlowBrush}" FontSize="12" FontWeight="SemiBold"/>
                 <TextBlock Text="F6 Pause" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
                 <TextBlock Text="F7 Cancel" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
             </StackPanel>

@@ -4,11 +4,18 @@ using CommunityToolkit.Mvvm.Input;
 using Koli.Config;
 using Koli.Platform;
 using Koli.Services;
+using Koli.WinUI.Overlays;
 using Koli.WinUI.Services;
 using Microsoft.UI.Dispatching;
 using Windows.ApplicationModel.DataTransfer;
 
 namespace Koli.WinUI.ViewModels;
+
+internal enum RecordingMode
+{
+    Dictation,
+    Assistant
+}
 
 public sealed partial class HomeViewModel : ObservableObject, IDisposable
 {
@@ -20,6 +27,8 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     private readonly PendingAudioStore _pendingAudio;
     private readonly TypingService _typing;
     private readonly ToastNotificationService _toast;
+    private readonly CursorIndicatorService _cursorIndicator;
+    private readonly TrayIconService _tray;
     private readonly InputLanguageService _inputLanguage;
     private readonly DispatcherQueue _dispatcher;
     private readonly Func<IntPtr> _getWindowHandle;
@@ -29,6 +38,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     private SpeechToTextService? _dictationRealtimeStt;
     private Task? _dictationRealtimeTask;
     private bool _dictationUsedRealtime;
+    private RecordingMode _recordingMode = RecordingMode.Dictation;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly StringBuilder _accumulatedTranscription = new();
     private DateTime _recordingStartTime = DateTime.MinValue;
@@ -42,6 +52,8 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isOutputLanguageAvailable = true;
     [ObservableProperty] private string _liveTranscript = "";
     [ObservableProperty] private string _transcriptTitle = "";
+    [ObservableProperty] private bool _isAssistantRecording;
+    [ObservableProperty] private bool _isDictationRecording;
     [ObservableProperty] private bool _isRecording;
     [ObservableProperty] private bool _isPaused;
     [ObservableProperty] private bool _showTranscriptCard;
@@ -58,6 +70,8 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         PendingAudioStore pendingAudio,
         TypingService typing,
         ToastNotificationService toast,
+        CursorIndicatorService cursorIndicator,
+        TrayIconService tray,
         InputLanguageService inputLanguage,
         DispatcherQueue dispatcher,
         Func<IntPtr> getWindowHandle)
@@ -70,6 +84,8 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         _pendingAudio = pendingAudio;
         _typing = typing;
         _toast = toast;
+        _cursorIndicator = cursorIndicator;
+        _tray = tray;
         _inputLanguage = inputLanguage;
         _dispatcher = dispatcher;
         _getWindowHandle = getWindowHandle;
@@ -96,8 +112,38 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         if (IsProcessing)
             return;
 
+        if (IsRecording && _recordingMode != RecordingMode.Dictation)
+        {
+            _toast.ShowInfo("Koli", "Recording already in progress.");
+            return;
+        }
+
         if (!IsRecording)
-            await StartRecordingAsync();
+            await StartRecordingAsync(RecordingMode.Dictation);
+        else
+            await StopRecordingAsync();
+    }
+
+    [RelayCommand]
+    public async Task ToggleAssistantRecordingAsync()
+    {
+        if (IsProcessing)
+            return;
+
+        if (!_settings.Assistant.Enabled)
+        {
+            _toast.ShowInfo("Koli", "Voice assistant is disabled in Settings.");
+            return;
+        }
+
+        if (IsRecording && _recordingMode != RecordingMode.Assistant)
+        {
+            _toast.ShowInfo("Koli", "Recording already in progress.");
+            return;
+        }
+
+        if (!IsRecording)
+            await StartRecordingAsync(RecordingMode.Assistant);
         else
             await StopRecordingAsync();
     }
@@ -110,7 +156,11 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
         IsRecording = false;
         IsPaused = false;
+        IsAssistantRecording = false;
+        UpdateRecordingModeFlags();
         _timerTick?.Stop();
+        _cursorIndicator.Hide();
+        UpdateTrayStatus(isRecording: false);
 
         if (!_dictationUsedRealtime)
             _cancellationTokenSource?.Cancel();
@@ -137,6 +187,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         StatusText = "Ready";
         RecordButtonGlyph = "\uE720";
         AudioLevel = 0;
+        _recordingMode = RecordingMode.Dictation;
         _toast.ShowInfo("Koli", "Recording cancelled");
     }
 
@@ -171,15 +222,16 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         }
     }
 
-    private async Task StartRecordingAsync()
+    private async Task StartRecordingAsync(RecordingMode mode)
     {
         try
         {
+            _recordingMode = mode;
             _typing.CaptureTargetWindow();
             SyncInputLanguageBeforeRecording();
             RefreshLanguageChips();
 
-            StatusText = "Starting...";
+            StatusText = mode == RecordingMode.Assistant ? "Assistant…" : "Starting...";
             IsProcessing = true;
 
             string apiKey;
@@ -201,7 +253,8 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             _debugLog.LogInfo($"Starting audio capture - Endpoint: {_settings.AzureOpenAI.Endpoint}, Model: {_settings.AzureOpenAI.Model}");
             await _audioCapture.StartAsync(_cancellationTokenSource.Token);
 
-            _dictationUsedRealtime = OpenAiModelProfiles.ShouldUseRealtimeTranscription(_settings.AzureOpenAI);
+            _dictationUsedRealtime = mode == RecordingMode.Dictation
+                && OpenAiModelProfiles.ShouldUseRealtimeTranscription(_settings.AzureOpenAI);
             if (_dictationUsedRealtime)
             {
                 _dictationRealtimeStt = new SpeechToTextService(_settings.AzureOpenAI, apiKey, _settings.Translation);
@@ -224,11 +277,15 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             IsRecording = true;
             IsPaused = false;
             IsProcessing = false;
-            StatusText = "Recording";
+            IsAssistantRecording = mode == RecordingMode.Assistant;
+            UpdateRecordingModeFlags();
+            StatusText = mode == RecordingMode.Assistant ? "Assistant…" : "Recording";
             RecordButtonGlyph = "\uE71A";
             ShowTranscriptCard = true;
-            TranscriptTitle = "Live transcript";
-            LiveTranscript = "";
+            TranscriptTitle = mode == RecordingMode.Assistant ? "Assistant question" : "Live transcript";
+            LiveTranscript = mode == RecordingMode.Assistant
+                ? "Posez votre question, puis appuyez à nouveau sur Alt Gr."
+                : "";
 
             _recordingStartTime = DateTime.UtcNow;
             UpdateTimerLabel();
@@ -238,7 +295,11 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             _timerTick.Tick += (_, _) => UpdateTimerLabel();
             _timerTick.Start();
 
-            _toast.ShowInfo("Koli", "Recording started");
+            _cursorIndicator.Show(IsAssistantRecording
+                ? CursorIndicatorState.AssistantRecording
+                : CursorIndicatorState.DictationRecording);
+            UpdateTrayStatus(isRecording: true);
+            _toast.ShowInfo("Koli", mode == RecordingMode.Assistant ? "Assistant recording started — press Alt Gr again to stop" : "Recording started");
         }
         catch (Exception ex)
         {
@@ -256,6 +317,10 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
         IsRecording = false;
         IsProcessing = true;
+        IsAssistantRecording = false;
+        UpdateRecordingModeFlags();
+        _cursorIndicator.Show(CursorIndicatorState.Processing);
+        UpdateTrayStatus(isRecording: false);
         _timerTick?.Stop();
 
         if (_audioCapture != null)
@@ -283,8 +348,11 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         _cancellationTokenSource?.Dispose();
         _cancellationTokenSource = null;
 
-        StatusText = "Transcribing...";
-        var progressMessage = _dictationUsedRealtime ? "Finalizing realtime session..." : "Transcription in progress";
+        var isAssistant = _recordingMode == RecordingMode.Assistant;
+        StatusText = isAssistant ? "Assistant…" : "Transcribing...";
+        var progressMessage = isAssistant
+            ? "Transcription in progress"
+            : _dictationUsedRealtime ? "Finalizing realtime session..." : "Transcription in progress";
         _toast.ShowInfo("Koli", progressMessage);
 
         var transcriptionErrorRaised = false;
@@ -293,7 +361,6 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
         try
         {
-
             string apiKey;
             try
             {
@@ -360,50 +427,20 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
                     TrySavePendingAudio(collectedAudio, lastTranscriptionError, ref savedAsPending);
             }
 
-            await ApplyTranslationAsync(apiKey, _speechToText?.OutputAlreadyApplied == true || _dictationRealtimeStt?.OutputAlreadyApplied == true);
-            await ApplyRewriteAsync(apiKey);
-
-            if (_accumulatedTranscription.Length > 0)
+            if (isAssistant)
             {
-                var finalText = _accumulatedTranscription.ToString();
-                try
-                {
-                    var dataPackage = new DataPackage();
-                    dataPackage.SetText(finalText);
-                    Clipboard.SetContent(dataPackage);
-                }
-                catch (Exception ex)
-                {
-                    _debugLog.LogError("Error copying text to clipboard", ex);
-                }
-
-                if (_settings.Typing.TypeInActiveWindow)
-                {
-                    if (_typing.RealtimeTypedAnything)
-                    {
-                        var hasOutputTransform = TranscriptionOutputLanguageService.IsOpenAiEndpoint(_settings.AzureOpenAI.Endpoint)
-                            ? TranscriptionOutputLanguageService.GetOutputLanguage(_settings.Translation) != null
-                            : _settings.Translation.Enabled && !string.IsNullOrWhiteSpace(_settings.Translation.TargetLanguage);
-                        if (hasOutputTransform || _settings.Rewrite.Enabled)
-                        {
-                            _toast.ShowInfo("Realtime", "Translation/Rewrite applied to clipboard only (live typing kept original).");
-                        }
-                    }
-                    else
-                    {
-                        _typing.TypeText(finalText, _settings.Typing, _getWindowHandle(), addLeadingSpace: false);
-                    }
-                }
-
-                _history.Add(finalText, _settings.AzureOpenAI.Language ?? "en");
-                TranscriptTitle = "Last transcript";
-                LiveTranscript = finalText;
-                ShowTranscriptCard = true;
+                if (await ProcessAssistantStopAsync(apiKey, collectedAudio, lastTranscriptionError))
+                    savedAsPending = true;
             }
-            else if (!savedAsPending)
+            else
             {
+                await ApplyTranslationAsync(apiKey, _speechToText?.OutputAlreadyApplied == true || _dictationRealtimeStt?.OutputAlreadyApplied == true);
+                await ApplyRewriteAsync(apiKey);
+                await DeliverDictationResultAsync();
+            }
+
+            if (!isAssistant && _accumulatedTranscription.Length == 0 && !savedAsPending)
                 TrySavePendingAudio(collectedAudio, lastTranscriptionError ?? "No transcription was produced", ref savedAsPending);
-            }
 
             StatusText = "Ready";
         }
@@ -417,8 +454,29 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         finally
         {
             IsProcessing = false;
+            IsAssistantRecording = false;
+            UpdateRecordingModeFlags();
             RecordButtonGlyph = "\uE720";
+            _recordingMode = RecordingMode.Dictation;
+            _cursorIndicator.Hide();
+            UpdateTrayStatus(isRecording: false);
         }
+    }
+
+    private void UpdateRecordingModeFlags() =>
+        IsDictationRecording = IsRecording && !IsAssistantRecording;
+
+    private void UpdateTrayStatus(bool isRecording)
+    {
+        if (!isRecording)
+        {
+            _tray.SetTooltip("Koli");
+            return;
+        }
+
+        _tray.SetTooltip(_recordingMode == RecordingMode.Assistant
+            ? "Koli — Assistant actif (Alt Gr pour arrêter)"
+            : "Koli — Dictée active (F9 pour arrêter)");
     }
 
     private void SyncInputLanguageBeforeRecording()
@@ -431,6 +489,108 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         }
 
         _inputLanguage.UpdateFromKeyboard();
+    }
+
+    private async Task<bool> ProcessAssistantStopAsync(
+        string apiKey,
+        byte[]? collectedAudio,
+        string? lastTranscriptionError)
+    {
+        var savedAsPending = false;
+        var question = _accumulatedTranscription.ToString().Trim();
+        if (string.IsNullOrWhiteSpace(question))
+        {
+            TrySavePendingAudio(collectedAudio, lastTranscriptionError ?? "No question was transcribed", ref savedAsPending);
+            if (!savedAsPending)
+                _toast.ShowError("Assistant", "Could not transcribe your question.");
+            return savedAsPending;
+        }
+
+        StatusText = "Assistant…";
+        _toast.ShowInfo("Koli", "Searching for an answer…");
+
+        try
+        {
+            var assistantService = new VoiceAssistantService(_settings.Assistant, _settings.AzureOpenAI.Endpoint, apiKey);
+            assistantService.RequestLogging += OnRequestLogging;
+            assistantService.ResponseLogging += OnResponseLogging;
+            assistantService.ErrorLogging += OnErrorLogging;
+
+            var answer = await assistantService.QueryAsync(question, CancellationToken.None);
+
+            assistantService.RequestLogging -= OnRequestLogging;
+            assistantService.ResponseLogging -= OnResponseLogging;
+            assistantService.ErrorLogging -= OnErrorLogging;
+            await assistantService.DisposeAsync();
+
+            if (string.IsNullOrWhiteSpace(answer))
+            {
+                if (!VoiceAssistantService.IsSupportedEndpoint(_settings.AzureOpenAI.Endpoint))
+                    _toast.ShowError("Assistant", "Voice assistant requires a public OpenAI endpoint (api.openai.com).");
+                else
+                    _toast.ShowError("Assistant", "Could not get an answer. Check API key and model settings.");
+                LiveTranscript = $"Q: {question}";
+                TranscriptTitle = "Assistant response";
+                ShowTranscriptCard = true;
+                return savedAsPending;
+            }
+
+            DeliverText(answer);
+            var historyEntry = $"Q: {question}\nA: {answer}";
+            _history.Add(historyEntry, _settings.AzureOpenAI.Language ?? "en");
+            TranscriptTitle = "Assistant response";
+            LiveTranscript = $"Q: {question}\n\nA: {answer}";
+            ShowTranscriptCard = true;
+        }
+        catch (Exception ex)
+        {
+            _debugLog.LogError("Assistant query failed", ex);
+            _toast.ShowError("Assistant", ex.Message);
+        }
+
+        return savedAsPending;
+    }
+
+    private async Task DeliverDictationResultAsync()
+    {
+        if (_accumulatedTranscription.Length == 0)
+            return;
+
+        var finalText = _accumulatedTranscription.ToString();
+        DeliverText(finalText);
+
+        if (_typing.RealtimeTypedAnything)
+        {
+            var hasOutputTransform = TranscriptionOutputLanguageService.IsOpenAiEndpoint(_settings.AzureOpenAI.Endpoint)
+                ? TranscriptionOutputLanguageService.GetOutputLanguage(_settings.Translation) != null
+                : _settings.Translation.Enabled && !string.IsNullOrWhiteSpace(_settings.Translation.TargetLanguage);
+            if (hasOutputTransform || _settings.Rewrite.Enabled)
+                _toast.ShowInfo("Realtime", "Translation/Rewrite applied to clipboard only (live typing kept original).");
+        }
+
+        _history.Add(finalText, _settings.AzureOpenAI.Language ?? "en");
+        TranscriptTitle = "Last transcript";
+        LiveTranscript = finalText;
+        ShowTranscriptCard = true;
+
+        await Task.CompletedTask;
+    }
+
+    private void DeliverText(string text)
+    {
+        try
+        {
+            var dataPackage = new DataPackage();
+            dataPackage.SetText(text);
+            Clipboard.SetContent(dataPackage);
+        }
+        catch (Exception ex)
+        {
+            _debugLog.LogError("Error copying text to clipboard", ex);
+        }
+
+        if (_settings.Typing.TypeInActiveWindow && !_typing.RealtimeTypedAnything)
+            _typing.TypeText(text, _settings.Typing, _getWindowHandle(), addLeadingSpace: false);
     }
 
     private async Task ApplyTranslationAsync(string apiKey, bool outputAlreadyApplied)
@@ -656,7 +816,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         var dialog = new Dialogs.OutputLanguageSettingsDialog(
             _settings.Translation,
             _settings.AzureOpenAI.Endpoint,
-            _settings.AzureOpenAI.Language);
+            "en");
         if (MainWindowHolder.Instance?.Content.XamlRoot != null)
             dialog.XamlRoot = MainWindowHolder.Instance.Content.XamlRoot;
         if (await dialog.ShowAsync() == Microsoft.UI.Xaml.Controls.ContentDialogResult.Primary)

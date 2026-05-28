@@ -40,6 +40,14 @@ public sealed class TrayIconService : IDisposable
 
     public Icon ApplicationIcon => _icon ?? SystemIcons.Application;
 
+    public void SetTooltip(string tooltip)
+    {
+        if (_notifyIcon == null)
+            return;
+
+        _notifyIcon.Text = tooltip.Length <= 63 ? tooltip : tooltip[..60] + "…";
+    }
+
     public void ShowBalloon(string title, string message, ToolTipIcon icon = ToolTipIcon.Info, int timeoutMs = 3000)
     {
         _notifyIcon?.ShowBalloonTip(Math.Min(timeoutMs, 10000), title, message, icon);

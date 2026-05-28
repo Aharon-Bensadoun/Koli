@@ -259,9 +259,6 @@ public class TranscriptionOutputLanguageServiceTests
     [InlineData("en", "en", "English")]
     [InlineData("fr", "en", "French")]
     [InlineData("he", "en", "Hebrew")]
-    [InlineData("en", "fr", "Anglais")]
-    [InlineData("fr", "fr", "Français")]
-    [InlineData("he", "fr", "Hébreu")]
     [InlineData("en", "he", "אנגלית")]
     [InlineData("fr", "he", "צרפתית")]
     public void OutputLanguageCatalog_GetDisplayName_Localizes(string code, string locale, string expected)
@@ -385,5 +382,170 @@ public class AppSettingsMigrationTests
             if (Directory.Exists(dir))
                 Directory.Delete(dir, recursive: true);
         }
+    }
+
+    [Fact]
+    public void Load_InitializesAssistantDefaultsWhenMissing()
+    {
+        var dir = Path.Combine(Path.GetTempPath(), "koli-assistant-" + Guid.NewGuid());
+        Directory.CreateDirectory(dir);
+        var path = Path.Combine(dir, "appsettings.json");
+        try
+        {
+            File.WriteAllText(path, """{ "AzureOpenAI": { "ApiKey": "" } }""");
+            var settings = AppSettings.Load(path);
+            Assert.NotNull(settings.Assistant);
+            Assert.True(settings.Assistant.Enabled);
+            Assert.Equal("gpt-4.1", settings.Assistant.Model);
+            Assert.True(settings.Assistant.WebSearchEnabled);
+            Assert.False(string.IsNullOrWhiteSpace(settings.Assistant.SystemPrompt));
+        }
+        finally
+        {
+            if (Directory.Exists(dir))
+                Directory.Delete(dir, recursive: true);
+        }
+    }
+}
+
+public class VoiceAssistantResponseParserTests
+{
+    [Fact]
+    public void ParseOutputText_ExtractsLastMessageOutputText()
+    {
+        const string json = """
+            {
+              "output": [
+                { "type": "web_search_call", "status": "completed" },
+                {
+                  "type": "message",
+                  "content": [
+                    { "type": "output_text", "text": "Draft answer" },
+                    { "type": "output_text", "text": "Final answer" }
+                  ]
+                }
+              ]
+            }
+            """;
+
+        var text = VoiceAssistantResponseParser.ParseOutputText(json);
+        Assert.Equal("Final answer", text);
+    }
+
+    [Fact]
+    public void ParseOutputText_ReturnsNullForEmptyOutput()
+    {
+        Assert.Null(VoiceAssistantResponseParser.ParseOutputText("""{ "output": [] }"""));
+        Assert.Null(VoiceAssistantResponseParser.ParseOutputText(""));
+    }
+
+    [Theory]
+    [InlineData("See https://example.com/doc for details.", "See for details.")]
+    [InlineData("Answer with citation [1] here.", "Answer with citation here.")]
+    public void CleanResponseText_StripsUrlsAndCitations(string input, string expected)
+    {
+        var cleaned = VoiceAssistantResponseParser.CleanResponseText(input);
+        Assert.Equal(expected, cleaned);
+    }
+
+    [Fact]
+    public void CleanResponseText_StripsMarkdownLinksToNull()
+    {
+        Assert.Null(VoiceAssistantResponseParser.CleanResponseText("[link text](https://example.com)"));
+    }
+
+    [Fact]
+    public void CleanResponseText_ReturnsNullForWhitespace()
+    {
+        Assert.Null(VoiceAssistantResponseParser.CleanResponseText("   "));
+        Assert.Null(VoiceAssistantResponseParser.CleanResponseText(null));
+    }
+}
+
+public class VoiceAssistantServiceTests
+{
+    [Fact]
+    public void BuildResponsesRequestBody_IncludesWebSearchWhenEnabled()
+    {
+        var settings = new AssistantSettings
+        {
+            Model = "gpt-4.1",
+            SystemPrompt = "Be concise."
+        };
+
+        var json = VoiceAssistantService.BuildResponsesRequestBody(settings, "What is Paris?", includeWebSearch: true);
+
+        Assert.Contains("\"model\":\"gpt-4.1\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"input\":\"What is Paris?\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"type\":\"web_search\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"toolChoice\":\"auto\"", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildResponsesRequestBody_OmitsToolsWhenWebSearchDisabled()
+    {
+        var settings = new AssistantSettings { Model = "gpt-4.1", SystemPrompt = "Be concise." };
+        var json = VoiceAssistantService.BuildResponsesRequestBody(settings, "Hello?", includeWebSearch: false);
+
+        Assert.DoesNotContain("web_search", json, StringComparison.Ordinal);
+        Assert.DoesNotContain("toolChoice", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void BuildChatCompletionRequestBody_IncludesSystemAndUserMessages()
+    {
+        var settings = new AssistantSettings { Model = "gpt-4.1", SystemPrompt = "Reply briefly." };
+        var json = VoiceAssistantService.BuildChatCompletionRequestBody(settings, "Bonjour?");
+
+        Assert.Contains("\"role\":\"system\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"role\":\"user\"", json, StringComparison.Ordinal);
+        Assert.Contains("Bonjour?", json, StringComparison.Ordinal);
+    }
+
+    [Theory]
+    [InlineData("", true)]
+    [InlineData("https://api.openai.com", true)]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", false)]
+    public void IsSupportedEndpoint_DetectsOpenAiHost(string endpoint, bool expected)
+    {
+        Assert.Equal(expected, VoiceAssistantService.IsSupportedEndpoint(endpoint));
+    }
+}
+
+public class AltGrToggleTrackerTests
+{
+    private const uint VkRMenu = 0xA5;
+    private const uint VkE = 0x45;
+    private const uint VkLControl = 0xA2;
+
+    [Fact]
+    public void LoneAltGrRelease_TogglesAssistant()
+    {
+        var tracker = new AltGrToggleTracker();
+
+        Assert.Null(tracker.ProcessKey(VkLControl, isKeyDown: true));
+        Assert.Null(tracker.ProcessKey(VkRMenu, isKeyDown: true));
+        Assert.Equal(true, tracker.ProcessKey(VkRMenu, isKeyDown: false));
+    }
+
+    [Fact]
+    public void AltGrWithCharacter_DoesNotToggle()
+    {
+        var tracker = new AltGrToggleTracker();
+
+        Assert.Null(tracker.ProcessKey(VkLControl, isKeyDown: true));
+        Assert.Null(tracker.ProcessKey(VkRMenu, isKeyDown: true));
+        Assert.Null(tracker.ProcessKey(VkE, isKeyDown: true));
+        Assert.Null(tracker.ProcessKey(VkE, isKeyDown: false));
+        Assert.Null(tracker.ProcessKey(VkRMenu, isKeyDown: false));
+    }
+
+    [Fact]
+    public void PlainRightAltRelease_TogglesAssistant()
+    {
+        var tracker = new AltGrToggleTracker();
+
+        Assert.Null(tracker.ProcessKey(VkRMenu, isKeyDown: true));
+        Assert.Equal(true, tracker.ProcessKey(VkRMenu, isKeyDown: false));
     }
 }

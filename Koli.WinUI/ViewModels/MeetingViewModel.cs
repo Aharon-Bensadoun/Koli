@@ -74,8 +74,8 @@ public sealed partial class MeetingViewModel : ObservableObject, IDisposable
 
         var label = TranscriptionOutputLanguageService.GetOutputLanguageChipLabel(_settings);
         OutputLanguageBadge = label.Equals("Auto", StringComparison.OrdinalIgnoreCase)
-            ? "Sortie: auto"
-            : $"Sortie: {label}";
+            ? "Output: Auto"
+            : $"Output: {label}";
     }
 
     [RelayCommand(CanExecute = nameof(CanStart))]

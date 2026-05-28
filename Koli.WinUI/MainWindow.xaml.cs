@@ -6,6 +6,7 @@ using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
+using Windows.UI;
 using WinRT.Interop;
 
 namespace Koli.WinUI;
@@ -19,6 +20,7 @@ public sealed partial class MainWindow : Window
         InitializeComponent();
         Title = "Koli";
         SystemBackdrop = new MicaBackdrop();
+        ConfigureDarkTitleBar();
 
         var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Koli.ico");
         Stream? iconStream = File.Exists(iconPath) ? File.OpenRead(iconPath) : null;
@@ -34,6 +36,8 @@ public sealed partial class MainWindow : Window
         var hwnd = WindowNative.GetWindowHandle(this);
         AppServices.Current.Hotkeys.HotkeyPressed += OnHotkeyPressed;
         AppServices.Current.Hotkeys.Register(hwnd);
+        if (AppServices.Current.Hotkeys.AssistantHotkeyRegistrationFailed)
+            AppServices.Current.Toast.ShowWarning("Hotkey", "Alt Gr assistant could not be activated. Restart Koli or check for keyboard hook conflicts.");
 
         AppServices.Current.Tray.ShowRequested += (_, _) => RestoreFromTray();
         AppServices.Current.Tray.ExitRequested += (_, _) => ExitApplication();
@@ -46,6 +50,29 @@ public sealed partial class MainWindow : Window
     }
 
     public IntPtr WindowHandle => WindowNative.GetWindowHandle(this);
+
+    private void ConfigureDarkTitleBar()
+    {
+        if (!AppWindowTitleBar.IsCustomizationSupported())
+            return;
+
+        var titleBar = AppWindow.TitleBar;
+        var background = Color.FromArgb(0xFF, 0x0E, 0x0E, 0x12);
+        var foreground = Color.FromArgb(0xFF, 0xF8, 0xFA, 0xFC);
+        var buttonHover = Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF);
+        var buttonPressed = Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF);
+
+        titleBar.BackgroundColor = background;
+        titleBar.InactiveBackgroundColor = background;
+        titleBar.ForegroundColor = foreground;
+        titleBar.InactiveForegroundColor = foreground;
+        var transparent = Color.FromArgb(0, 0, 0, 0);
+        titleBar.ButtonBackgroundColor = transparent;
+        titleBar.ButtonInactiveBackgroundColor = transparent;
+        titleBar.ButtonForegroundColor = foreground;
+        titleBar.ButtonHoverBackgroundColor = buttonHover;
+        titleBar.ButtonPressedBackgroundColor = buttonPressed;
+    }
 
     private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
     {
@@ -90,6 +117,9 @@ public sealed partial class MainWindow : Window
                     break;
                 case HotkeyAction.TogglePause:
                     await home.TogglePauseCommand.ExecuteAsync(null);
+                    break;
+                case HotkeyAction.ToggleAssistantRecording:
+                    await home.ToggleAssistantRecordingCommand.ExecuteAsync(null);
                     break;
             }
         });

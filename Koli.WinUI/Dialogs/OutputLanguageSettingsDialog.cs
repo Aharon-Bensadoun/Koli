@@ -22,7 +22,7 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
         _isAvailable = TranscriptionOutputLanguageService.IsOpenAiEndpoint(apiEndpoint);
         _presetLanguages = OutputLanguageCatalog.GetPresetOptions(displayLocale);
 
-        Title = "Langue de sortie";
+        Title = "Output language";
         PrimaryButtonText = "Save";
         CloseButtonText = "Cancel";
         IsPrimaryButtonEnabled = _isAvailable;
@@ -33,20 +33,20 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
 
         _sameAsSpokenRadio = new RadioButton
         {
-            Content = "Même langue que parlée",
+            Content = "Same as spoken",
             IsChecked = !isFixed,
             IsEnabled = _isAvailable
         };
         _fixedRadio = new RadioButton
         {
-            Content = "Langue fixe",
+            Content = "Fixed language",
             IsChecked = isFixed,
             IsEnabled = _isAvailable
         };
 
         _languageCombo = new ComboBox
         {
-            Header = "Langue",
+            Header = "Language",
             HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Stretch,
             IsEnabled = _isAvailable && isFixed,
             ItemsSource = _presetLanguages.Select(p => p.Label).ToList()
@@ -61,7 +61,7 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
 
         _customIsoBox = new TextBox
         {
-            Header = "Autre (ISO 639-1)",
+            Header = "Other (ISO 639-1)",
             PlaceholderText = "en",
             Text = presetIndex < 0 ? currentCode : "",
             IsEnabled = _isAvailable && isFixed
@@ -69,7 +69,7 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
 
         _unavailableMessage = new TextBlock
         {
-            Text = "Langue de sortie disponible uniquement avec OpenAI / Azure OpenAI.",
+            Text = "Output language is only available with OpenAI / Azure OpenAI.",
             TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
             Visibility = _isAvailable
                 ? Microsoft.UI.Xaml.Visibility.Collapsed
@@ -78,9 +78,9 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
 
         var help = new TextBlock
         {
-            Text = "Disponible avec OpenAI / Azure OpenAI uniquement.\n"
-                   + "Pour l'anglais avec whisper-1, la traduction audio native est utilisée.\n"
-                   + "En mode Realtime, un repli automatique peut s'appliquer.",
+            Text = "Available with OpenAI / Azure OpenAI only.\n"
+                   + "For English with whisper-1, native audio translation is used.\n"
+                   + "In Realtime mode, an automatic fallback may apply.",
             TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
             Opacity = 0.8
         };

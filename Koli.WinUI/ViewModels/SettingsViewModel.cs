@@ -16,8 +16,12 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly IAppPaths _paths;
     private readonly ToastNotificationService _toast;
     private readonly InputLanguageService _inputLanguage;
+    private readonly StartupTaskService _startupTask;
+    private bool _loadingLaunchAtStartup;
 
     [ObservableProperty] private string _aboutText = "";
+    [ObservableProperty] private bool _isLaunchAtStartupAvailable;
+    [ObservableProperty] private bool _launchAtStartup;
     [ObservableProperty] private bool _rewriteEnabled;
     [ObservableProperty] private string _rewriteLevel = "Professional";
     [ObservableProperty] private bool _translationEnabled;
@@ -31,6 +35,9 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _typingAutoSpace = true;
     [ObservableProperty] private bool _typingInActiveWindow = true;
     [ObservableProperty] private bool _typingStreamingMode;
+    [ObservableProperty] private bool _assistantEnabled = true;
+    [ObservableProperty] private bool _assistantWebSearchEnabled = true;
+    [ObservableProperty] private string _assistantModel = "gpt-4.1";
 
     public IReadOnlyList<string> RewriteLevels { get; } =
         ["Casual", "Polished", "Professional", "Formal", "Executive"];
@@ -43,15 +50,59 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<LanguagePickerItem> TargetLanguageOptions { get; private set; } = [];
 
-    public SettingsViewModel(AppSettings settings, SecureSettingsStore secureStore, IAppPaths paths, ToastNotificationService toast, InputLanguageService inputLanguage)
+    public SettingsViewModel(AppSettings settings, SecureSettingsStore secureStore, IAppPaths paths, ToastNotificationService toast, InputLanguageService inputLanguage, StartupTaskService startupTask)
     {
         _settings = settings;
         _secureStore = secureStore;
         _paths = paths;
         _toast = toast;
         _inputLanguage = inputLanguage;
+        _startupTask = startupTask;
         LoadFromSettings();
+        _ = LoadLaunchAtStartupAsync();
         AboutText = $"{AppInfo.ProductName} {AppInfo.Version}\n{AppInfo.Description}\n\n{AppInfo.DeveloperName}\n{AppInfo.ContactEmail}\n{AppInfo.RepositoryUrl}\n\n{AppInfo.Copyright}";
+    }
+
+    private async Task LoadLaunchAtStartupAsync()
+    {
+        IsLaunchAtStartupAvailable = _startupTask.IsAvailable;
+        if (!IsLaunchAtStartupAvailable)
+            return;
+
+        _loadingLaunchAtStartup = true;
+        LaunchAtStartup = await _startupTask.IsEnabledAsync();
+        _loadingLaunchAtStartup = false;
+    }
+
+    partial void OnLaunchAtStartupChanged(bool value)
+    {
+        if (_loadingLaunchAtStartup)
+            return;
+
+        _ = ApplyLaunchAtStartupAsync(value);
+    }
+
+    private async Task ApplyLaunchAtStartupAsync(bool enabled)
+    {
+        var result = await _startupTask.SetEnabledAsync(enabled);
+        if (result == StartupTaskChangeResult.Success)
+            return;
+
+        _loadingLaunchAtStartup = true;
+        LaunchAtStartup = await _startupTask.IsEnabledAsync();
+        _loadingLaunchAtStartup = false;
+
+        var message = result switch
+        {
+            StartupTaskChangeResult.DisabledByUser =>
+                "Startup was turned off in Windows Settings. Re-enable it under Settings → Apps → Startup apps.",
+            StartupTaskChangeResult.DisabledByPolicy =>
+                "Startup is blocked by a policy on this device.",
+            StartupTaskChangeResult.NotAvailable =>
+                "Launch at startup is only available in the MSIX-installed version of Koli.",
+            _ => "Could not change startup setting. Try again or use Settings → Apps → Startup apps."
+        };
+        _toast.ShowError("Startup", message);
     }
 
     private void LoadFromSettings()
@@ -68,6 +119,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         TypingAutoSpace = _settings.Typing.AutoSpace;
         TypingInActiveWindow = _settings.Typing.TypeInActiveWindow;
         TypingStreamingMode = _settings.Typing.StreamingMode;
+        AssistantEnabled = _settings.Assistant.Enabled;
+        AssistantWebSearchEnabled = _settings.Assistant.WebSearchEnabled;
+        AssistantModel = string.IsNullOrWhiteSpace(_settings.Assistant.Model)
+            ? "gpt-4.1"
+            : _settings.Assistant.Model.Trim();
         RefreshTargetLanguageOptions();
         SelectedOutputLanguageMode = OutputLanguageModes.FirstOrDefault(m =>
             m.Value.Equals(OutputLanguageMode, StringComparison.OrdinalIgnoreCase))
@@ -77,7 +133,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void RefreshTargetLanguageOptions()
     {
-        var displayLocale = _settings.AzureOpenAI.Language;
+        const string displayLocale = "en";
         TargetLanguageOptions = OutputLanguageCatalog.GetPresetOptions(displayLocale)
             .Select(p => new LanguagePickerItem { Label = p.DisplayName, Code = p.Code })
             .ToList();
@@ -118,6 +174,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.Typing.AutoSpace = TypingAutoSpace;
         _settings.Typing.TypeInActiveWindow = TypingInActiveWindow;
         _settings.Typing.StreamingMode = TypingStreamingMode;
+        _settings.Assistant.Enabled = AssistantEnabled;
+        _settings.Assistant.WebSearchEnabled = AssistantWebSearchEnabled;
+        _settings.Assistant.Model = string.IsNullOrWhiteSpace(AssistantModel) ? "gpt-4.1" : AssistantModel.Trim();
         _settings.Save(_paths.ConfigPath);
         _inputLanguage.StartMonitoring();
         _toast.ShowInfo("Settings", "Settings saved.");

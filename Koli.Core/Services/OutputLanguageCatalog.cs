@@ -17,13 +17,6 @@ public static class OutputLanguageCatalog
         { ("es", "en"), "Spanish" },
         { ("it", "en"), "Italian" },
 
-        { ("en", "fr"), "Anglais" },
-        { ("fr", "fr"), "Français" },
-        { ("he", "fr"), "Hébreu" },
-        { ("de", "fr"), "Allemand" },
-        { ("es", "fr"), "Espagnol" },
-        { ("it", "fr"), "Italien" },
-
         { ("en", "he"), "אנגלית" },
         { ("fr", "he"), "צרפתית" },
         { ("he", "he"), "עברית" },
@@ -37,7 +30,6 @@ public static class OutputLanguageCatalog
         var code = (locale ?? "en").Trim().ToLowerInvariant();
         return code switch
         {
-            "fr" => "fr",
             "he" or "iw" => "he",
             _ => "en"
         };

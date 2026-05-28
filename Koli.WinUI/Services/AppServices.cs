@@ -68,6 +68,8 @@ public sealed class AppServices
 
     public ToastNotificationService Toast => _services.GetRequiredService<ToastNotificationService>();
 
+    public CursorIndicatorService CursorIndicator => _services.GetRequiredService<CursorIndicatorService>();
+
     public InputLanguageService InputLanguage => _services.GetRequiredService<InputLanguageService>();
 
 
@@ -177,6 +179,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IToastPresenter>(sp => sp.GetRequiredService<WinUiToastPresenter>());
 
         services.AddSingleton<ToastNotificationService>();
+
+        services.AddSingleton<CursorIndicatorService>();
+
+        services.AddSingleton<StartupTaskService>();
 
         services.AddSingleton(sp =>
 

@@ -10,6 +10,15 @@
 
             <Button Content="Configure API…" HorizontalAlignment="Left" Command="{Binding ConfigureApiCommand}"/>
 
+            <TextBlock Text="General" FontWeight="SemiBold"
+                       Visibility="{Binding IsLaunchAtStartupAvailable, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <ToggleSwitch Header="Launch at Windows sign-in"
+                          IsOn="{Binding LaunchAtStartup, Mode=TwoWay}"
+                          Visibility="{Binding IsLaunchAtStartupAvailable, Converter={StaticResource BoolToVisibilityConverter}}"/>
+            <TextBlock Text="Also available under Settings → Apps → Startup apps."
+                       Foreground="{StaticResource TextSecondaryBrush}"
+                       Visibility="{Binding IsLaunchAtStartupAvailable, Converter={StaticResource BoolToVisibilityConverter}}"/>
+
             <ToggleSwitch Header="Enable text rewriting" IsOn="{Binding RewriteEnabled, Mode=TwoWay}"/>
             <TextBlock Text="Rewrite style"/>
             <ComboBox ItemsSource="{Binding RewriteLevels}" SelectedItem="{Binding RewriteLevel, Mode=TwoWay}"/>
@@ -26,6 +35,13 @@
                       ItemsSource="{Binding TargetLanguageOptions}"
                       SelectedItem="{Binding SelectedTargetLanguage, Mode=TwoWay}"
                       IsEnabled="{Binding IsTargetLanguageEnabled, Mode=OneWay}"/>
+
+            <TextBlock Text="Voice assistant (Alt Gr)" FontWeight="SemiBold"/>
+            <TextBlock Text="Alt Gr = ask a spoken question; Koli types the answer into the active window."
+                       Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="WrapWholeWords"/>
+            <ToggleSwitch Header="Enable voice assistant (Alt Gr)" IsOn="{Binding AssistantEnabled, Mode=TwoWay}"/>
+            <ToggleSwitch Header="Web search" IsOn="{Binding AssistantWebSearchEnabled, Mode=TwoWay}"/>
+            <TextBox Header="Assistant model" Text="{Binding AssistantModel, Mode=TwoWay}" PlaceholderText="gpt-4.1"/>
 
             <TextBlock Text="Typing" FontWeight="SemiBold"/>
             <ToggleSwitch Header="Auto space" IsOn="{Binding TypingAutoSpace, Mode=TwoWay}"/>

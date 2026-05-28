@@ -12,6 +12,7 @@ public sealed class AppSettings
     public RewriteSettings Rewrite { get; set; } = new();
     public MeetingSettings Meeting { get; set; } = new();
     public TranslationSettings Translation { get; set; } = new();
+    public AssistantSettings Assistant { get; set; } = new();
 
     public static AppSettings Load(string path)
     {
@@ -38,6 +39,7 @@ public sealed class AppSettings
         settings.Rewrite ??= new RewriteSettings();
         settings.Meeting ??= new MeetingSettings();
         settings.Translation ??= new TranslationSettings();
+        settings.Assistant ??= new AssistantSettings();
 
         TranscriptionOutputLanguageService.MigrateTranslationSettings(settings.Translation);
         TranscriptionOutputLanguageService.SyncLegacyEnabledFlag(settings.Translation);
@@ -122,7 +124,7 @@ public sealed class RewriteSettings
 {
     public bool Enabled { get; set; } = false;
     public string Model { get; set; } = "gpt-3.5-turbo";
-    public string Prompt { get; set; } = "Réécris le texte suivant de façon professionnelle et claire. Si le texte mélange le français et l’hébreu, conserve chaque langue dans sa forme parlée : les parties en français restent en français (corrige grammaire et style en français uniquement) ; les parties en hébreu restent en hébreu, écrites en alphabet hébreu (corrige grammaire et style en hébreu uniquement). Si des mots manifestement hébreux (vocabulaire talmudique, biblique, commentaires) ne sont que transcrits en alphabet latin, remplace-les par l’écriture en caractères hébreux (א-ת), sans changer le sens. Ne traduis pas du français vers l’hébreu ni de l’hébreu vers le français, sauf si le texte source demande explicitement une traduction. Ne renvoie que le texte réécrit, sans aucune explication :";
+    public string Prompt { get; set; } = "Rewrite the following text in a professional and clear manner. If the text mixes French and Hebrew, keep each language in its spoken form: French parts stay in French (correct grammar and style in French only); Hebrew parts stay in Hebrew, written in Hebrew script (correct grammar and style in Hebrew only). If words that are clearly Hebrew (Talmudic, Biblical, commentary vocabulary) appear only as Latin transliteration, replace them with Hebrew script (א-ת) without changing meaning. Do not translate from French to Hebrew or Hebrew to French unless the source text explicitly requests a translation. Only return the rewritten text, with no explanation:";
     public string ProfessionalismLevel { get; set; } = "Professional"; // Casual, Polished, Professional, Formal, Executive
     
     public string GetPromptForLevel(string language = "en")
@@ -173,7 +175,7 @@ public sealed class MeetingSettings
 }
 
 /// <summary>
-/// Output language settings (UI: "Langue de sortie"). For OpenAI/Azure endpoints the app
+/// Output language settings (UI: "Output language"). For OpenAI/Azure endpoints the app
 /// routes STT to produce text directly in the target language when possible; otherwise a
 /// post-transcription LLM step applies. On-prem endpoints keep legacy behaviour only.
 /// </summary>
@@ -205,4 +207,21 @@ public sealed class TranslationSettings
 
     /// <summary>Ai Nexus <c>/api/ai/query</c>: JSON <c>providerId</c> when set.</summary>
     public int? ProviderId { get; set; }
+}
+
+/// <summary>
+/// Voice assistant (Alt Gr): transcribe a spoken question, query OpenAI Responses API, paste the answer.
+/// </summary>
+public sealed class AssistantSettings
+{
+    public bool Enabled { get; set; } = true;
+    public string Model { get; set; } = "gpt-4.1";
+    public bool WebSearchEnabled { get; set; } = true;
+    public string SystemPrompt { get; set; } = DefaultSystemPrompt;
+
+    public const string DefaultSystemPrompt =
+        "Tu es un assistant vocal. Réponds uniquement avec la réponse finale, sans salutation, sans « Voici la réponse », sans mise en forme conversationnelle. " +
+        "Réponds dans la langue de la question. " +
+        "Si l'information est introuvable ou incertaine, réponds uniquement « Je ne sais pas. » ou « Je n'ai pas trouvé de réponse. » " +
+        "N'inclus aucune citation, URL, lien ou source dans le texte.";
 }
