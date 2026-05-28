@@ -39,6 +39,19 @@ public partial class App : Application
     {
         AppInfo.Initialize(typeof(App).Assembly);
 
+        if (IsPackagedApp())
+        {
+            var package = Windows.ApplicationModel.Package.Current;
+            var packageInstallLocation = package.InstalledLocation.Path;
+            var packageVersion = package.Id.Version;
+            AddRemoveProgramsRegistration.RegisterIfNeeded(
+                packageInstallLocation,
+                Path.Combine(packageInstallLocation, "Assets", "Koli.ico"),
+                Path.Combine(packageInstallLocation, "Koli.exe"),
+                $"{packageVersion.Major}.{packageVersion.Minor}.{packageVersion.Build}.{packageVersion.Revision}",
+                AppInfo.DeveloperName);
+        }
+
         var installDirectory = AppContext.BaseDirectory;
         var dataDirectory = IsPackagedApp()
             ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Koli")

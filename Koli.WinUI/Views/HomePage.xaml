@@ -4,8 +4,8 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Koli.WinUI.Controls">
 
-    <controls:PageShell Title="Dictée"
-                        Subtitle="F9 pour dicter — Alt Gr pour l’assistant — F6 pause, F7 annuler">
+    <controls:PageShell Title="Dictation"
+                        Subtitle="F9 to dictate — Alt Gr for assistant — F6 pause, F7 cancel">
 
         <controls:PageShell.HeaderActions>
             <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpacingS}" VerticalAlignment="Center">

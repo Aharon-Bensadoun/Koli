@@ -12,7 +12,7 @@ featuring multi-speaker diarization.
 
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/version-1.0.0-7C3AED)](https://github.com/Aharon-Bensadoun/Koli/releases)
+[![Version](https://img.shields.io/badge/version-1.0.1.2-7C3AED)](https://github.com/Aharon-Bensadoun/Koli/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22C55E)](LICENSE)
 
 [Features](#-features) •
@@ -90,15 +90,15 @@ featuring multi-speaker diarization.
 Download the latest `.msix` package from [Releases](https://github.com/Aharon-Bensadoun/Koli/releases).
 
 1. **Install the signing certificate** (first time only):
-   - Double-click `Koli.WinUI_1.0.0.0_x64.cer`
+   - Double-click `Koli.WinUI_1.0.1.2_x64.cer`
    - Click **Install Certificate…** → **Local Machine** → **Place all certificates in the following store** → **Browse** → **Trusted People** → **OK** → **Next** → **Finish**.
    - Or run in an elevated PowerShell:
      ```powershell
-     Import-Certificate -FilePath .\Koli.WinUI_1.0.0.0_x64.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
+     Import-Certificate -FilePath .\Koli.WinUI_1.0.1.2_x64.cer -CertStoreLocation Cert:\LocalMachine\TrustedPeople
      ```
 
 2. **Install the app**:
-   - Double-click `Koli.WinUI_1.0.0.0_x64.msix` and click **Install**.
+   - Double-click `Koli.WinUI_1.0.1.2_x64.msix` and click **Install**.
    - Or run the included script:
      ```powershell
      .\Install.ps1
@@ -540,9 +540,9 @@ The output is placed in:
 
 ```
 Koli.WinUI/bin/x64/Release/net8.0-windows10.0.22621.0/win-x64/AppPackages/
-└── Koli.WinUI_1.0.0.0_x64_Test/
-    ├── Koli.WinUI_1.0.0.0_x64.msix   (~104 MB)
-    ├── Koli.WinUI_1.0.0.0_x64.cer    (signing certificate)
+└── Koli.WinUI_1.0.1.2_x64_Test/
+    ├── Koli.WinUI_1.0.1.2_x64.msix   (~104 MB)
+    ├── Koli.WinUI_1.0.1.2_x64.cer    (signing certificate)
     └── Install.ps1                     (automated installer script)
 ```
 
