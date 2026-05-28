@@ -4,34 +4,89 @@
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     Title="Koli">
 
-    <Grid Background="{StaticResource AppBackgroundBrush}">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <Grid x:Name="AppTitleBar"
+              Height="{StaticResource TitleBarHeight}"
+              Padding="12,0,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+                <ColumnDefinition Width="140"/>
+            </Grid.ColumnDefinitions>
+
+            <Image Source="ms-appx:///Assets/Koli.png"
+                   Width="18" Height="18"
+                   VerticalAlignment="Center"/>
+
+            <TextBlock Grid.Column="1"
+                       Text="Koli"
+                       Margin="10,0,0,0"
+                       VerticalAlignment="Center"
+                       Style="{StaticResource CaptionTextBlockStyle}"
+                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+
+            <StackPanel Grid.Column="3"
+                        Orientation="Horizontal"
+                        Spacing="8"
+                        VerticalAlignment="Center"
+                        Margin="0,0,12,0">
+                <Border x:Name="TitleBarRecBadge"
+                        Style="{StaticResource RecordingChipBorderStyle}"
+                        Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse Width="8" Height="8" Fill="{StaticResource RecordingPrimaryBrush}"/>
+                        <TextBlock Text="REC"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource RecordingPrimaryBrush}"/>
+                    </StackPanel>
+                </Border>
+                <Border x:Name="TitleBarAssistantBadge"
+                        Style="{StaticResource AccentChipBorderStyle}"
+                        Visibility="Collapsed">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse Width="8" Height="8" Fill="{StaticResource AccentPrimaryBrush}"/>
+                        <TextBlock Text="Assistant"
+                                   FontSize="11" FontWeight="SemiBold"
+                                   Foreground="{StaticResource AccentGlowBrush}"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </Grid>
+
         <NavigationView x:Name="NavView"
+                        Grid.Row="1"
                         IsBackButtonVisible="Collapsed"
                         IsSettingsVisible="False"
                         PaneDisplayMode="LeftCompact"
                         SelectionChanged="NavView_SelectionChanged"
-                        ItemInvoked="NavView_ItemInvoked"
-                        Background="{StaticResource SurfaceBrush}">
+                        ItemInvoked="NavView_ItemInvoked">
 
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Home" Tag="Home">
                     <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Home"/>
+                        <FontIcon Glyph="&#xE80F;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="History" Tag="History">
                     <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Clock"/>
+                        <FontIcon Glyph="&#xE823;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="Meeting" Tag="Meeting">
                     <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="People"/>
+                        <FontIcon Glyph="&#xE8F2;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
                 <NavigationViewItem Content="Debug" Tag="Debug">
                     <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Repair"/>
+                        <FontIcon Glyph="&#xEBE8;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.MenuItems>
@@ -39,7 +94,7 @@
             <NavigationView.FooterMenuItems>
                 <NavigationViewItem Content="Settings" Tag="Settings">
                     <NavigationViewItem.Icon>
-                        <SymbolIcon Symbol="Setting"/>
+                        <FontIcon Glyph="&#xE713;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
             </NavigationView.FooterMenuItems>

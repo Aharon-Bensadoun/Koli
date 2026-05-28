@@ -2,75 +2,221 @@
     x:Class="Koli.WinUI.Views.MeetingPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Koli.WinUI.Controls"
     xmlns:vm="using:Koli.WinUI.ViewModels">
 
-    <Grid Padding="24" RowSpacing="12">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <controls:PageShell Title="Meeting" Subtitle="Capture a multi-speaker conversation in real time">
 
-        <StackPanel Spacing="12">
-            <TextBlock Text="Meeting" Style="{StaticResource PageTitleStyle}"/>
-            <Grid ColumnSpacing="12">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="2*"/>
-                    <ColumnDefinition Width="*"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                    <ColumnDefinition Width="Auto"/>
-                </Grid.ColumnDefinitions>
-                <TextBox Text="{Binding Title, Mode=TwoWay}" PlaceholderText="Meeting title"/>
-                <ComboBox Grid.Column="1" ItemsSource="{Binding AudioSources}" SelectedIndex="{Binding AudioSourceIndex, Mode=TwoWay}"/>
-                <Button Grid.Column="2" Content="Start" Style="{StaticResource PrimaryButtonStyle}"
-                        Command="{Binding StartCommand}" IsEnabled="{Binding IsRecording, Mode=OneWay, Converter={StaticResource BoolNegationConverter}}"/>
-                <Button Grid.Column="3" Content="Stop" Style="{StaticResource SecondaryButtonStyle}"
-                        Command="{Binding StopCommand}" IsEnabled="{Binding IsRecording, Mode=OneWay}"/>
-                <Button Grid.Column="4" Content="Export" Style="{StaticResource SecondaryButtonStyle}" Command="{Binding ExportCommand}"/>
-            </Grid>
-            <TextBlock Text="{Binding StatusText}" Foreground="{StaticResource TextSecondaryBrush}"/>
-            <StackPanel Orientation="Horizontal" Spacing="12">
-                <TextBlock Text="{Binding TimerText}" FontFamily="Cascadia Mono"/>
-                <Border BorderBrush="{StaticResource AccentGlowBrush}"
-                        BorderThickness="1"
-                        CornerRadius="8"
-                        Padding="8,4"
-                        Visibility="{Binding ShowOutputLanguageBadge, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <TextBlock Text="{Binding OutputLanguageBadge}" FontWeight="SemiBold" Foreground="{StaticResource AccentGlowBrush}"/>
-                </Border>
+        <controls:PageShell.HeaderActions>
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpacingS}">
+                <Button Style="{StaticResource PrimaryButtonStyle}"
+                        Command="{Binding StartCommand}"
+                        IsEnabled="{Binding IsRecording, Mode=OneWay, Converter={StaticResource BoolNegationConverter}}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE7C8;" FontSize="12" Foreground="White"/>
+                        <TextBlock Text="Start"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding StopCommand}"
+                        IsEnabled="{Binding IsRecording, Mode=OneWay}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE71A;" FontSize="12"/>
+                        <TextBlock Text="Stop"/>
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource SecondaryButtonStyle}" Command="{Binding ExportCommand}">
+                    <StackPanel Orientation="Horizontal" Spacing="6">
+                        <FontIcon Glyph="&#xE74E;" FontSize="12"/>
+                        <TextBlock Text="Export"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
-        </StackPanel>
+        </controls:PageShell.HeaderActions>
 
-        <Grid Grid.Row="1" ColumnSpacing="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="3*"/>
-                <ColumnDefinition Width="*"/>
-            </Grid.ColumnDefinitions>
-            <ScrollViewer>
-                <ItemsControl ItemsSource="{Binding Segments}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:MeetingSegmentViewModel">
-                            <StackPanel Margin="0,8,0,8" Spacing="4">
-                                <TextBlock Text="{x:Bind SpeakerId}" FontWeight="SemiBold" Foreground="{StaticResource AccentGlowBrush}"/>
-                                <TextBlock Text="{x:Bind Text}" TextWrapping="WrapWholeWords" Foreground="{StaticResource TextPrimaryBrush}"/>
+        <Grid RowSpacing="{StaticResource SpacingL}" MaxWidth="{StaticResource PageContentMaxWidth}" HorizontalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <Grid ColumnSpacing="{StaticResource SpacingM}" RowSpacing="{StaticResource SpacingS}">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="2*"/>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="Auto"/>
+                    </Grid.RowDefinitions>
+
+                    <TextBox Header="Meeting title"
+                             Text="{Binding Title, Mode=TwoWay}"
+                             PlaceholderText="Meeting title"/>
+                    <ComboBox Grid.Column="1"
+                              Header="Audio source"
+                              HorizontalAlignment="Stretch"
+                              ItemsSource="{Binding AudioSources}"
+                              SelectedIndex="{Binding AudioSourceIndex, Mode=TwoWay}"/>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Spacing="2">
+                        <TextBlock Text="Status" Style="{StaticResource SectionLabelStyle}"/>
+                        <TextBlock Text="{Binding StatusText}"
+                                   Style="{StaticResource CaptionMutedTextStyle}"
+                                   VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <StackPanel Grid.Column="3" VerticalAlignment="Bottom" Spacing="2" HorizontalAlignment="Right">
+                        <TextBlock Text="Duration" Style="{StaticResource SectionLabelStyle}" HorizontalAlignment="Right"/>
+                        <TextBlock Text="{Binding TimerText}"
+                                   FontFamily="Cascadia Mono" FontSize="14"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                    </StackPanel>
+
+                    <StackPanel Grid.Row="1" Grid.ColumnSpan="4"
+                                Orientation="Horizontal" Spacing="{StaticResource SpacingS}"
+                                Visibility="{Binding ShowOutputLanguageBadge, Converter={StaticResource BoolToVisibilityConverter}}">
+                        <Border Style="{StaticResource AccentChipBorderStyle}">
+                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                <FontIcon Glyph="&#xF2B7;" FontSize="11"
+                                          Foreground="{StaticResource AccentGlowBrush}"/>
+                                <TextBlock Text="{Binding OutputLanguageBadge}"
+                                           FontSize="12" FontWeight="SemiBold"
+                                           Foreground="{StaticResource AccentGlowBrush}"/>
                             </StackPanel>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </ScrollViewer>
-            <StackPanel Grid.Column="1" Spacing="8">
-                <TextBlock Text="Participants" FontWeight="SemiBold"/>
-                <ItemsControl ItemsSource="{Binding Participants}">
-                    <ItemsControl.ItemTemplate>
-                        <DataTemplate x:DataType="vm:ParticipantViewModel">
-                            <TextBlock Text="{x:Bind Name}" Margin="0,4" Foreground="{StaticResource TextPrimaryBrush}"/>
-                        </DataTemplate>
-                    </ItemsControl.ItemTemplate>
-                </ItemsControl>
-            </StackPanel>
+                        </Border>
+                    </StackPanel>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnSpacing="{StaticResource SpacingL}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="3*"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+
+                <Border Style="{StaticResource CardBorderStyle}" Padding="0">
+                    <Grid RowSpacing="{StaticResource SpacingS}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid Padding="16,12,16,4" ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Transcript"
+                                       Style="{StaticResource SubtitleTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            <Border Grid.Column="1" Style="{StaticResource ChipBorderStyle}">
+                                <TextBlock Text="{Binding Segments.Count, Mode=OneWay, FallbackValue=0}"
+                                           FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+
+                        <ScrollViewer Grid.Row="1" Padding="16,0,16,16" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Segments}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:MeetingSegmentViewModel">
+                                        <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
+                                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
+                                                BorderThickness="1"
+                                                CornerRadius="{StaticResource RadiusMedium}"
+                                                Padding="12"
+                                                Margin="0,0,0,8">
+                                            <Grid RowSpacing="4">
+                                                <Grid.RowDefinitions>
+                                                    <RowDefinition Height="Auto"/>
+                                                    <RowDefinition Height="Auto"/>
+                                                </Grid.RowDefinitions>
+                                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                    <Ellipse Width="10" Height="10"
+                                                             Fill="{x:Bind ColorHex, Converter={StaticResource HexToBrushConverter}}"/>
+                                                    <TextBlock Text="{x:Bind SpeakerId}"
+                                                               FontWeight="SemiBold"
+                                                               Foreground="{x:Bind ColorHex, Converter={StaticResource HexToBrushConverter}}"/>
+                                                </StackPanel>
+                                                <TextBlock Grid.Row="1"
+                                                           Text="{x:Bind Text}"
+                                                           TextWrapping="WrapWholeWords"
+                                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                            </Grid>
+                                        </Border>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+
+                <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
+                    <Grid RowSpacing="{StaticResource SpacingS}">
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="*"/>
+                        </Grid.RowDefinitions>
+                        <Grid ColumnSpacing="8">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+                            <TextBlock Text="Participants"
+                                       Style="{StaticResource SubtitleTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            <Border Grid.Column="1" Style="{StaticResource ChipBorderStyle}">
+                                <TextBlock Text="{Binding Participants.Count, Mode=OneWay, FallbackValue=0}"
+                                           FontSize="11" FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                            </Border>
+                        </Grid>
+                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                            <ItemsControl ItemsSource="{Binding Participants}">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate x:DataType="vm:ParticipantViewModel">
+                                        <Grid ColumnSpacing="10" Margin="0,4">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+                                            <PersonPicture Width="32" Height="32"
+                                                           DisplayName="{x:Bind Name}"
+                                                           Initials="{x:Bind Name, Converter={StaticResource NameToInitialsConverter}}"
+                                                           BorderBrush="{x:Bind ColorHex, Converter={StaticResource HexToBrushConverter}}"
+                                                           BorderThickness="2"/>
+                                            <TextBlock Grid.Column="1"
+                                                       Text="{x:Bind Name}"
+                                                       VerticalAlignment="Center"
+                                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                        </Grid>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </ScrollViewer>
+                    </Grid>
+                </Border>
+            </Grid>
+
+            <Grid Grid.Row="2" ColumnSpacing="{StaticResource SpacingS}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Audio level"
+                           Style="{StaticResource CaptionMutedTextStyle}"
+                           VerticalAlignment="Center"/>
+                <ProgressBar Grid.Column="1"
+                             Value="{Binding AudioLevel, Mode=OneWay}"
+                             Maximum="1"
+                             Height="6"
+                             VerticalAlignment="Center"
+                             Foreground="{StaticResource AccentPrimaryBrush}"
+                             Background="{ThemeResource ControlFillColorTertiaryBrush}"/>
+            </Grid>
         </Grid>
 
-        <TextBlock Grid.Row="2" Text="{Binding AudioLevel}" Foreground="{StaticResource TextTertiaryBrush}"/>
-    </Grid>
+    </controls:PageShell>
 </Page>

@@ -2,57 +2,174 @@
     x:Class="Koli.WinUI.Views.SettingsPage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-    xmlns:controls="using:Koli.WinUI.Controls">
+    xmlns:controls="using:Koli.WinUI.Controls"
+    xmlns:cc="using:CommunityToolkit.WinUI.Controls">
 
-    <ScrollViewer Padding="24">
-        <StackPanel Spacing="16" MaxWidth="720">
-            <TextBlock Text="Settings" Style="{StaticResource PageTitleStyle}"/>
+    <controls:PageShell Title="Settings" Subtitle="Tune Koli to your workflow">
+        <controls:PageShell.HeaderActions>
+            <Button Content="Save"
+                    Style="{StaticResource PrimaryButtonStyle}"
+                    Command="{Binding SaveCommand}"/>
+        </controls:PageShell.HeaderActions>
 
-            <Button Content="Configure API…" HorizontalAlignment="Left" Command="{Binding ConfigureApiCommand}"/>
+        <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <StackPanel Spacing="{StaticResource SpacingXL}" MaxWidth="{StaticResource PageContentReadableWidth}" HorizontalAlignment="Stretch">
 
-            <TextBlock Text="General" FontWeight="SemiBold"
-                       Visibility="{Binding IsLaunchAtStartupAvailable, Converter={StaticResource BoolToVisibilityConverter}}"/>
-            <ToggleSwitch Header="Launch at Windows sign-in"
-                          IsOn="{Binding LaunchAtStartup, Mode=TwoWay}"
-                          Visibility="{Binding IsLaunchAtStartupAvailable, Converter={StaticResource BoolToVisibilityConverter}}"/>
-            <TextBlock Text="Also available under Settings → Apps → Startup apps."
-                       Foreground="{StaticResource TextSecondaryBrush}"
-                       Visibility="{Binding IsLaunchAtStartupAvailable, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                <!-- Account & API -->
+                <StackPanel Spacing="{StaticResource SpacingS}">
+                    <TextBlock Text="ACCOUNT" Style="{StaticResource SectionLabelStyle}"/>
+                    <cc:SettingsCard Header="API configuration"
+                                     Description="Connect Koli to OpenAI, Azure OpenAI, or an on-premise endpoint."
+                                     IsClickEnabled="True"
+                                     Command="{Binding ConfigureApiCommand}">
+                        <cc:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE192;"/>
+                        </cc:SettingsCard.HeaderIcon>
+                        <FontIcon Glyph="&#xE76C;" FontSize="13"
+                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    </cc:SettingsCard>
+                </StackPanel>
 
-            <ToggleSwitch Header="Enable text rewriting" IsOn="{Binding RewriteEnabled, Mode=TwoWay}"/>
-            <TextBlock Text="Rewrite style"/>
-            <ComboBox ItemsSource="{Binding RewriteLevels}" SelectedItem="{Binding RewriteLevel, Mode=TwoWay}"/>
+                <!-- Languages -->
+                <StackPanel Spacing="{StaticResource SpacingS}">
+                    <TextBlock Text="LANGUAGES &amp; TRANSLATION" Style="{StaticResource SectionLabelStyle}"/>
 
-            <TextBlock Text="Output language" FontWeight="SemiBold"/>
-            <TextBlock Text="Available with OpenAI / Azure OpenAI only."
-                       Foreground="{StaticResource TextSecondaryBrush}"
-                       Visibility="{Binding ShowOnPremOutputLanguageNotice, Converter={StaticResource BoolToVisibilityConverter}}"/>
-            <ComboBox Header="Mode"
-                      ItemsSource="{Binding OutputLanguageModes}"
-                      SelectedItem="{Binding SelectedOutputLanguageMode, Mode=TwoWay}"
-                      IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"/>
-            <ComboBox Header="Target language"
-                      ItemsSource="{Binding TargetLanguageOptions}"
-                      SelectedItem="{Binding SelectedTargetLanguage, Mode=TwoWay}"
-                      IsEnabled="{Binding IsTargetLanguageEnabled, Mode=OneWay}"/>
+                    <InfoBar IsOpen="{Binding ShowOnPremOutputLanguageNotice}"
+                             IsClosable="False"
+                             Severity="Informational"
+                             Title="Output language unavailable"
+                             Message="Output language selection requires an OpenAI or Azure OpenAI endpoint."/>
 
-            <TextBlock Text="Voice assistant (Alt Gr)" FontWeight="SemiBold"/>
-            <TextBlock Text="Alt Gr = ask a spoken question; Koli types the answer into the active window."
-                       Foreground="{StaticResource TextSecondaryBrush}" TextWrapping="WrapWholeWords"/>
-            <ToggleSwitch Header="Enable voice assistant (Alt Gr)" IsOn="{Binding AssistantEnabled, Mode=TwoWay}"/>
-            <ToggleSwitch Header="Web search" IsOn="{Binding AssistantWebSearchEnabled, Mode=TwoWay}"/>
-            <TextBox Header="Assistant model" Text="{Binding AssistantModel, Mode=TwoWay}" PlaceholderText="gpt-4.1"/>
+                    <cc:SettingsExpander Header="Output language"
+                                         Description="Force the transcription language or follow the spoken one."
+                                         IsExpanded="True"
+                                         IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}">
+                        <cc:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xF2B7;"/>
+                        </cc:SettingsExpander.HeaderIcon>
+                        <cc:SettingsExpander.Items>
+                            <cc:SettingsCard Header="Mode">
+                                <ComboBox MinWidth="220"
+                                          ItemsSource="{Binding OutputLanguageModes}"
+                                          SelectedItem="{Binding SelectedOutputLanguageMode, Mode=TwoWay}"
+                                          IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"/>
+                            </cc:SettingsCard>
+                            <cc:SettingsCard Header="Target language"
+                                             Description="Used when mode is set to a fixed language.">
+                                <ComboBox MinWidth="220"
+                                          ItemsSource="{Binding TargetLanguageOptions}"
+                                          SelectedItem="{Binding SelectedTargetLanguage, Mode=TwoWay}"
+                                          IsEnabled="{Binding IsTargetLanguageEnabled, Mode=OneWay}"/>
+                            </cc:SettingsCard>
+                        </cc:SettingsExpander.Items>
+                    </cc:SettingsExpander>
+                </StackPanel>
 
-            <TextBlock Text="Typing" FontWeight="SemiBold"/>
-            <ToggleSwitch Header="Auto space" IsOn="{Binding TypingAutoSpace, Mode=TwoWay}"/>
-            <ToggleSwitch Header="Type in active window" IsOn="{Binding TypingInActiveWindow, Mode=TwoWay}"/>
-            <ToggleSwitch Header="Streaming mode" IsOn="{Binding TypingStreamingMode, Mode=TwoWay}"/>
+                <!-- Rewriting -->
+                <StackPanel Spacing="{StaticResource SpacingS}">
+                    <TextBlock Text="TEXT REWRITING" Style="{StaticResource SectionLabelStyle}"/>
+                    <cc:SettingsExpander Header="Rewrite captured text"
+                                         Description="Polish what you dictate before it is typed.">
+                        <cc:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE932;"/>
+                        </cc:SettingsExpander.HeaderIcon>
+                        <ToggleSwitch IsOn="{Binding RewriteEnabled, Mode=TwoWay}"/>
+                        <cc:SettingsExpander.Items>
+                            <cc:SettingsCard Header="Style"
+                                             Description="How strongly Koli rewrites your dictation.">
+                                <ComboBox MinWidth="220"
+                                          ItemsSource="{Binding RewriteLevels}"
+                                          SelectedItem="{Binding RewriteLevel, Mode=TwoWay}"
+                                          IsEnabled="{Binding RewriteEnabled, Mode=OneWay}"/>
+                            </cc:SettingsCard>
+                        </cc:SettingsExpander.Items>
+                    </cc:SettingsExpander>
+                </StackPanel>
 
-            <Button Content="Save settings" Style="{StaticResource PrimaryButtonStyle}" HorizontalAlignment="Left" Command="{Binding SaveCommand}"/>
+                <!-- Voice assistant -->
+                <StackPanel Spacing="{StaticResource SpacingS}">
+                    <TextBlock Text="VOICE ASSISTANT (Alt Gr)" Style="{StaticResource SectionLabelStyle}"/>
+                    <cc:SettingsExpander Header="Voice assistant"
+                                         Description="Ask a spoken question with Alt Gr; Koli types the answer into the active window.">
+                        <cc:SettingsExpander.HeaderIcon>
+                            <FontIcon Glyph="&#xE99A;"/>
+                        </cc:SettingsExpander.HeaderIcon>
+                        <ToggleSwitch IsOn="{Binding AssistantEnabled, Mode=TwoWay}"/>
+                        <cc:SettingsExpander.Items>
+                            <cc:SettingsCard Header="Web search"
+                                             Description="Allow the assistant to perform a web search before answering.">
+                                <ToggleSwitch IsOn="{Binding AssistantWebSearchEnabled, Mode=TwoWay}"
+                                              IsEnabled="{Binding AssistantEnabled, Mode=OneWay}"/>
+                            </cc:SettingsCard>
+                            <cc:SettingsCard Header="Model"
+                                             Description="Override the default assistant model.">
+                                <TextBox MinWidth="220"
+                                         Text="{Binding AssistantModel, Mode=TwoWay}"
+                                         PlaceholderText="gpt-4.1"
+                                         IsEnabled="{Binding AssistantEnabled, Mode=OneWay}"/>
+                            </cc:SettingsCard>
+                        </cc:SettingsExpander.Items>
+                    </cc:SettingsExpander>
+                </StackPanel>
 
-            <Border Style="{StaticResource CardBorderStyle}">
-                <TextBlock Text="{Binding AboutText}" TextWrapping="WrapWholeWords" Foreground="{StaticResource TextSecondaryBrush}"/>
-            </Border>
-        </StackPanel>
-    </ScrollViewer>
+                <!-- Typing -->
+                <StackPanel Spacing="{StaticResource SpacingS}">
+                    <TextBlock Text="TYPING" Style="{StaticResource SectionLabelStyle}"/>
+                    <cc:SettingsCard Header="Auto space"
+                                     Description="Insert a space before typed text when needed.">
+                        <cc:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE75D;"/>
+                        </cc:SettingsCard.HeaderIcon>
+                        <ToggleSwitch IsOn="{Binding TypingAutoSpace, Mode=TwoWay}"/>
+                    </cc:SettingsCard>
+                    <cc:SettingsCard Header="Type in active window"
+                                     Description="Send the transcribed text directly to the focused window.">
+                        <cc:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE7C5;"/>
+                        </cc:SettingsCard.HeaderIcon>
+                        <ToggleSwitch IsOn="{Binding TypingInActiveWindow, Mode=TwoWay}"/>
+                    </cc:SettingsCard>
+                    <cc:SettingsCard Header="Streaming mode"
+                                     Description="Type partial results as they arrive.">
+                        <cc:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE9D9;"/>
+                        </cc:SettingsCard.HeaderIcon>
+                        <ToggleSwitch IsOn="{Binding TypingStreamingMode, Mode=TwoWay}"/>
+                    </cc:SettingsCard>
+                </StackPanel>
+
+                <!-- System -->
+                <StackPanel Spacing="{StaticResource SpacingS}"
+                            Visibility="{Binding IsLaunchAtStartupAvailable, Converter={StaticResource BoolToVisibilityConverter}}">
+                    <TextBlock Text="SYSTEM" Style="{StaticResource SectionLabelStyle}"/>
+                    <cc:SettingsCard Header="Launch at Windows sign-in"
+                                     Description="Also configurable in Settings → Apps → Startup apps.">
+                        <cc:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE7E8;"/>
+                        </cc:SettingsCard.HeaderIcon>
+                        <ToggleSwitch IsOn="{Binding LaunchAtStartup, Mode=TwoWay}"/>
+                    </cc:SettingsCard>
+                </StackPanel>
+
+                <!-- About -->
+                <StackPanel Spacing="{StaticResource SpacingS}">
+                    <TextBlock Text="ABOUT" Style="{StaticResource SectionLabelStyle}"/>
+                    <Border Style="{StaticResource CardBorderStyle}">
+                        <StackPanel Spacing="6">
+                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                                <FontIcon Glyph="&#xE946;" FontSize="14"
+                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                <TextBlock Text="Koli" FontWeight="SemiBold"
+                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            </StackPanel>
+                            <TextBlock Text="{Binding AboutText}"
+                                       TextWrapping="WrapWholeWords"
+                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+
+            </StackPanel>
+        </ScrollViewer>
+    </controls:PageShell>
 </Page>

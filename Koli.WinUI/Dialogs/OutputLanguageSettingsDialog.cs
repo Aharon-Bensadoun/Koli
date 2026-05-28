@@ -1,5 +1,6 @@
 using Koli.Config;
 using Koli.Services;
+using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 
 namespace Koli.WinUI.Dialogs;
@@ -8,11 +9,10 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
 {
     private readonly TranslationSettings _settings;
     private readonly bool _isAvailable;
-    private readonly RadioButton _sameAsSpokenRadio;
-    private readonly RadioButton _fixedRadio;
-    private readonly ComboBox _languageCombo;
-    private readonly TextBox _customIsoBox;
-    private readonly TextBlock _unavailableMessage;
+    private readonly RadioButton? _sameAsSpokenRadio;
+    private readonly RadioButton? _fixedRadio;
+    private readonly ComboBox? _languageCombo;
+    private readonly TextBox? _customIsoBox;
 
     private readonly IReadOnlyList<(string Label, string Code)> _presetLanguages;
 
@@ -31,24 +31,30 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
         var isFixed = _settings.Mode.Equals("Fixed", StringComparison.OrdinalIgnoreCase)
                       && !string.IsNullOrWhiteSpace(_settings.TargetLanguage);
 
-        _sameAsSpokenRadio = new RadioButton
+        var panel = new StackPanel { Spacing = 12, MinWidth = 420 };
+
+        if (!_isAvailable)
         {
-            Content = "Same as spoken",
-            IsChecked = !isFixed,
-            IsEnabled = _isAvailable
-        };
-        _fixedRadio = new RadioButton
-        {
-            Content = "Fixed language",
-            IsChecked = isFixed,
-            IsEnabled = _isAvailable
-        };
+            panel.Children.Add(new InfoBar
+            {
+                IsOpen = true,
+                IsClosable = false,
+                Severity = InfoBarSeverity.Warning,
+                Title = "Not available with this endpoint",
+                Message = "Output language selection is only available with OpenAI or Azure OpenAI endpoints."
+            });
+            Content = panel;
+            return;
+        }
+
+        _sameAsSpokenRadio = new RadioButton { Content = "Same as spoken", IsChecked = !isFixed };
+        _fixedRadio = new RadioButton { Content = "Fixed language", IsChecked = isFixed };
 
         _languageCombo = new ComboBox
         {
             Header = "Language",
-            HorizontalAlignment = Microsoft.UI.Xaml.HorizontalAlignment.Stretch,
-            IsEnabled = _isAvailable && isFixed,
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            IsEnabled = isFixed,
             ItemsSource = _presetLanguages.Select(p => p.Label).ToList()
         };
 
@@ -61,60 +67,46 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
 
         _customIsoBox = new TextBox
         {
-            Header = "Other (ISO 639-1)",
+            Header = "Custom ISO 639-1 (optional)",
             PlaceholderText = "en",
             Text = presetIndex < 0 ? currentCode : "",
-            IsEnabled = _isAvailable && isFixed
-        };
-
-        _unavailableMessage = new TextBlock
-        {
-            Text = "Output language is only available with OpenAI / Azure OpenAI.",
-            TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
-            Visibility = _isAvailable
-                ? Microsoft.UI.Xaml.Visibility.Collapsed
-                : Microsoft.UI.Xaml.Visibility.Visible
-        };
-
-        var help = new TextBlock
-        {
-            Text = "Available with OpenAI / Azure OpenAI only.\n"
-                   + "For English with whisper-1, native audio translation is used.\n"
-                   + "In Realtime mode, an automatic fallback may apply.",
-            TextWrapping = Microsoft.UI.Xaml.TextWrapping.WrapWholeWords,
-            Opacity = 0.8
+            IsEnabled = isFixed
         };
 
         _sameAsSpokenRadio.Checked += (_, _) => UpdateFixedControls(false);
         _fixedRadio.Checked += (_, _) => UpdateFixedControls(true);
 
-        Content = new StackPanel
+        var help = new TextBlock
         {
-            Spacing = 12,
-            MinWidth = 420,
-            Children =
-            {
-                _unavailableMessage,
-                _sameAsSpokenRadio,
-                _fixedRadio,
-                _languageCombo,
-                _customIsoBox,
-                help
-            }
+            Text = "For English with whisper-1, native audio translation is used.\n"
+                   + "In Realtime mode, an automatic fallback may apply.",
+            TextWrapping = TextWrapping.WrapWholeWords,
+            Foreground = Application.Current.Resources["TextSecondaryBrush"] as Microsoft.UI.Xaml.Media.Brush,
+            FontSize = 12
         };
+
+        panel.Children.Add(_sameAsSpokenRadio);
+        panel.Children.Add(_fixedRadio);
+        panel.Children.Add(_languageCombo);
+        panel.Children.Add(_customIsoBox);
+        panel.Children.Add(help);
+
+        Content = panel;
 
         PrimaryButtonClick += (_, _) => SaveSettings();
     }
 
     private void UpdateFixedControls(bool fixedMode)
     {
-        _languageCombo.IsEnabled = _isAvailable && fixedMode;
-        _customIsoBox.IsEnabled = _isAvailable && fixedMode;
+        if (_languageCombo is null || _customIsoBox is null)
+            return;
+        _languageCombo.IsEnabled = fixedMode;
+        _customIsoBox.IsEnabled = fixedMode;
     }
 
     private void SaveSettings()
     {
-        if (!_isAvailable)
+        if (!_isAvailable || _sameAsSpokenRadio is null || _customIsoBox is null || _languageCombo is null)
             return;
 
         if (_sameAsSpokenRadio.IsChecked == true)

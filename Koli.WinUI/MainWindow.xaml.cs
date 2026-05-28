@@ -1,5 +1,7 @@
+using System.ComponentModel;
 using Koli.Platform;
 using Koli.WinUI.Services;
+using Koli.WinUI.ViewModels;
 using Koli.WinUI.Views;
 using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
@@ -14,13 +16,17 @@ namespace Koli.WinUI;
 public sealed partial class MainWindow : Window
 {
     private bool _isExiting;
+    private HomeViewModel? _homeViewModel;
 
     public MainWindow()
     {
         InitializeComponent();
         Title = "Koli";
         SystemBackdrop = new MicaBackdrop();
-        ConfigureDarkTitleBar();
+
+        ExtendsContentIntoTitleBar = true;
+        SetTitleBar(AppTitleBar);
+        ConfigureTitleBarButtons();
 
         var iconPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Koli.ico");
         Stream? iconStream = File.Exists(iconPath) ? File.OpenRead(iconPath) : null;
@@ -47,31 +53,49 @@ public sealed partial class MainWindow : Window
 
         ContentFrame.Navigate(typeof(HomePage));
         NavView.SelectedItem = NavView.MenuItems[0];
+
+        HookHomeViewModelForTitleBarBadges();
     }
 
     public IntPtr WindowHandle => WindowNative.GetWindowHandle(this);
 
-    private void ConfigureDarkTitleBar()
+    private void ConfigureTitleBarButtons()
     {
         if (!AppWindowTitleBar.IsCustomizationSupported())
             return;
 
         var titleBar = AppWindow.TitleBar;
-        var background = Color.FromArgb(0xFF, 0x0E, 0x0E, 0x12);
-        var foreground = Color.FromArgb(0xFF, 0xF8, 0xFA, 0xFC);
-        var buttonHover = Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF);
-        var buttonPressed = Color.FromArgb(0x55, 0xFF, 0xFF, 0xFF);
-
-        titleBar.BackgroundColor = background;
-        titleBar.InactiveBackgroundColor = background;
-        titleBar.ForegroundColor = foreground;
-        titleBar.InactiveForegroundColor = foreground;
         var transparent = Color.FromArgb(0, 0, 0, 0);
+
+        titleBar.BackgroundColor = transparent;
+        titleBar.InactiveBackgroundColor = transparent;
         titleBar.ButtonBackgroundColor = transparent;
         titleBar.ButtonInactiveBackgroundColor = transparent;
-        titleBar.ButtonForegroundColor = foreground;
-        titleBar.ButtonHoverBackgroundColor = buttonHover;
-        titleBar.ButtonPressedBackgroundColor = buttonPressed;
+        // Foreground and hover colors are left to the system so they adapt to light/dark.
+    }
+
+    private void HookHomeViewModelForTitleBarBadges()
+    {
+        _homeViewModel = AppServices.Current.GetViewModel<HomeViewModel>();
+        _homeViewModel.PropertyChanged += HomeViewModel_PropertyChanged;
+        UpdateTitleBarBadges();
+    }
+
+    private void HomeViewModel_PropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(HomeViewModel.IsDictationRecording) or nameof(HomeViewModel.IsAssistantRecording))
+        {
+            var dispatcher = AppServices.Current.Get<WindowContext>().DispatcherQueue;
+            dispatcher.TryEnqueue(UpdateTitleBarBadges);
+        }
+    }
+
+    private void UpdateTitleBarBadges()
+    {
+        if (_homeViewModel is null)
+            return;
+        TitleBarRecBadge.Visibility = _homeViewModel.IsDictationRecording ? Visibility.Visible : Visibility.Collapsed;
+        TitleBarAssistantBadge.Visibility = _homeViewModel.IsAssistantRecording ? Visibility.Visible : Visibility.Collapsed;
     }
 
     private void NavView_ItemInvoked(NavigationView sender, NavigationViewItemInvokedEventArgs args)
@@ -153,6 +177,8 @@ public sealed partial class MainWindow : Window
 
     private void Cleanup()
     {
+        if (_homeViewModel is not null)
+            _homeViewModel.PropertyChanged -= HomeViewModel_PropertyChanged;
         AppServices.Current.Hotkeys.Unregister();
         AppServices.Current.Hotkeys.HotkeyPressed -= OnHotkeyPressed;
         AppServices.Current.InputLanguage.StopMonitoring();

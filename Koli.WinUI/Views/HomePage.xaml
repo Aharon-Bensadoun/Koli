@@ -1,79 +1,192 @@
 <Page
     x:Class="Koli.WinUI.Views.HomePage"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Koli.WinUI.Controls">
 
-    <Grid Padding="24" RowSpacing="16">
-        <Grid.RowDefinitions>
-            <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
-            <RowDefinition Height="Auto"/>
-        </Grid.RowDefinitions>
+    <controls:PageShell Title="Dictée"
+                        Subtitle="F9 pour dicter — Alt Gr pour l’assistant — F6 pause, F7 annuler">
 
-        <StackPanel Orientation="Horizontal" Spacing="12">
-            <Button Command="{Binding OpenOutputLanguageSettingsCommand}"
-                    IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"
-                    ToolTipService.ToolTip="Output text language (OpenAI / Azure OpenAI only)">
-                <StackPanel Orientation="Horizontal" Spacing="4">
-                    <TextBlock Text="Output:" Foreground="{StaticResource TextSecondaryBrush}"/>
-                    <TextBlock Text="{Binding OutputLanguageChip}" FontWeight="SemiBold"/>
-                    <FontIcon Glyph="&#xE70D;" FontSize="10" VerticalAlignment="Center"/>
+        <controls:PageShell.HeaderActions>
+            <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpacingS}" VerticalAlignment="Center">
+
+                <Border Style="{StaticResource ChipBorderStyle}"
+                        ToolTipService.ToolTip="Detected from the Windows keyboard">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xE8D3;" FontSize="11"
+                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        <TextBlock Text="{Binding InputLanguageChip}"
+                                   FontSize="12" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                    </StackPanel>
+                </Border>
+
+                <Button Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding OpenOutputLanguageSettingsCommand}"
+                        IsEnabled="{Binding IsOutputLanguageAvailable, Mode=OneWay}"
+                        Padding="10,4"
+                        ToolTipService.ToolTip="Output text language (OpenAI / Azure OpenAI only)">
+                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <FontIcon Glyph="&#xF2B7;" FontSize="11"
+                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                        <TextBlock Text="{Binding OutputLanguageChip}"
+                                   FontSize="12" FontWeight="SemiBold"/>
+                        <FontIcon Glyph="&#xE70D;" FontSize="9"
+                                  Foreground="{ThemeResource TextFillColorTertiaryBrush}"/>
+                    </StackPanel>
+                </Button>
+
+            </StackPanel>
+        </controls:PageShell.HeaderActions>
+
+        <Grid RowSpacing="{StaticResource SpacingL}" MaxWidth="{StaticResource PageContentMaxWidth}" HorizontalAlignment="Stretch">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="*"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <Border Style="{StaticResource CardBorderStyle}">
+                <Grid RowSpacing="{StaticResource SpacingM}">
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto"/>
+                        <RowDefinition Height="*"/>
+                    </Grid.RowDefinitions>
+
+                    <Grid ColumnSpacing="{StaticResource SpacingM}">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
+                        </Grid.ColumnDefinitions>
+
+                        <StackPanel Spacing="2" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding TranscriptTitle}"
+                                       Style="{StaticResource SubtitleTextBlockStyle}"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            <TextBlock Text="{Binding StatusText}"
+                                       Style="{StaticResource CaptionMutedTextStyle}"/>
+                        </StackPanel>
+
+                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="{StaticResource SpacingS}"
+                                    VerticalAlignment="Center">
+                            <Border Style="{StaticResource AccentChipBorderStyle}"
+                                    Visibility="{Binding IsAssistantRecording, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <Ellipse Width="8" Height="8" Fill="{StaticResource AccentPrimaryBrush}"/>
+                                    <TextBlock Text="Assistant" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{StaticResource AccentGlowBrush}"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Style="{StaticResource RecordingChipBorderStyle}"
+                                    Visibility="{Binding IsDictationRecording, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
+                                <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                                    <Ellipse Width="8" Height="8" Fill="{StaticResource RecordingPrimaryBrush}"/>
+                                    <TextBlock Text="REC" FontSize="12" FontWeight="SemiBold"
+                                               Foreground="{StaticResource RecordingPrimaryBrush}"/>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="{Binding TimerText}"
+                                       VerticalAlignment="Center"
+                                       FontFamily="Cascadia Mono"
+                                       FontSize="13"
+                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        </StackPanel>
+                    </Grid>
+
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <TextBlock Text="{Binding LiveTranscript}"
+                                   Style="{StaticResource BodyTextBlockStyle}"
+                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"
+                                   TextWrapping="WrapWholeWords"/>
+                    </ScrollViewer>
+                </Grid>
+            </Border>
+
+            <Grid Grid.Row="1" ColumnSpacing="{StaticResource SpacingL}">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto"/>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <Button Style="{StaticResource RecordButtonStyle}"
+                        Command="{Binding ToggleRecordingCommand}"
+                        ToolTipService.ToolTip="Start / stop dictation (F9)">
+                    <Grid>
+                        <Ellipse Width="84" Height="84"
+                                 Fill="{StaticResource AccentSoftBrush}"
+                                 Visibility="{Binding IsDictationRecording, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}"/>
+                        <FontIcon Glyph="{Binding RecordButtonGlyph}" FontSize="26" Foreground="White"/>
+                    </Grid>
+                </Button>
+
+                <StackPanel Grid.Column="1" Spacing="{StaticResource SpacingS}" VerticalAlignment="Center">
+                    <TextBlock Text="Audio level"
+                               Style="{StaticResource CaptionMutedTextStyle}"/>
+                    <ProgressBar Value="{Binding AudioLevel, Mode=OneWay}"
+                                 Maximum="1"
+                                 Height="6"
+                                 Background="{ThemeResource ControlFillColorTertiaryBrush}"
+                                 Foreground="{StaticResource AccentPrimaryBrush}"/>
                 </StackPanel>
-            </Button>
-            <StackPanel Orientation="Horizontal" Spacing="4" VerticalAlignment="Center"
-                        ToolTipService.ToolTip="Language detected from the Windows keyboard">
-                <TextBlock Text="Input:" Foreground="{StaticResource TextSecondaryBrush}"/>
-                <TextBlock Text="{Binding InputLanguageChip}" Foreground="{StaticResource AccentGlowBrush}" FontWeight="SemiBold"/>
-            </StackPanel>
-            <TextBlock Text="{Binding StatusText}" VerticalAlignment="Center" Foreground="{StaticResource TextSecondaryBrush}"/>
-            <TextBlock Text="{Binding TimerText}" VerticalAlignment="Center" FontFamily="Cascadia Mono" Foreground="{StaticResource TextPrimaryBrush}"/>
-            <Border Background="{StaticResource AccentPrimaryBrush}" CornerRadius="6" Padding="8,4"
-                    Visibility="{Binding IsAssistantRecording, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                <TextBlock Text="Assistant" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
-            </Border>
-            <Border Background="{StaticResource RecordingPrimaryBrush}" CornerRadius="6" Padding="8,4"
-                    Visibility="{Binding IsDictationRecording, Mode=OneWay, Converter={StaticResource BoolToVisibilityConverter}}">
-                <TextBlock Text="REC" Foreground="White" FontSize="12" FontWeight="SemiBold"/>
-            </Border>
-        </StackPanel>
 
-        <Border Grid.Row="1" Style="{StaticResource CardBorderStyle}">
-            <Grid RowSpacing="12">
-                <Grid.RowDefinitions>
-                    <RowDefinition Height="Auto"/>
-                    <RowDefinition Height="*"/>
-                </Grid.RowDefinitions>
-                <TextBlock Text="{Binding TranscriptTitle}" Style="{StaticResource PageTitleStyle}" FontSize="16"/>
-                <ScrollViewer Grid.Row="1">
-                    <TextBlock Text="{Binding LiveTranscript}"
-                               Style="{StaticResource BodyTextStyle}"
-                               Foreground="{StaticResource TextPrimaryBrush}"/>
-                </ScrollViewer>
+                <Border Grid.Column="2" Style="{StaticResource SubtleCardBorderStyle}">
+                    <StackPanel Spacing="4">
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ChipBorderStyle}" Padding="6,1">
+                                <TextBlock Text="F9" FontFamily="Cascadia Mono" FontSize="11"
+                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="Start / stop dictation"
+                                       Style="{StaticResource CaptionMutedTextStyle}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource AccentChipBorderStyle}" Padding="6,1">
+                                <TextBlock Text="Alt Gr" FontFamily="Cascadia Mono" FontSize="11"
+                                           Foreground="{StaticResource AccentGlowBrush}"/>
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="Voice assistant"
+                                       Style="{StaticResource CaptionMutedTextStyle}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ChipBorderStyle}" Padding="6,1">
+                                <TextBlock Text="F6" FontFamily="Cascadia Mono" FontSize="11"
+                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="Pause"
+                                       Style="{StaticResource CaptionMutedTextStyle}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                        <Grid ColumnSpacing="10">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Style="{StaticResource ChipBorderStyle}" Padding="6,1">
+                                <TextBlock Text="F7" FontFamily="Cascadia Mono" FontSize="11"
+                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                            </Border>
+                            <TextBlock Grid.Column="1" Text="Cancel"
+                                       Style="{StaticResource CaptionMutedTextStyle}"
+                                       VerticalAlignment="Center"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
             </Grid>
-        </Border>
-
-        <Grid Grid.Row="2" ColumnSpacing="16">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="Auto"/>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-
-            <Button Width="64" Height="64" CornerRadius="32"
-                    Command="{Binding ToggleRecordingCommand}"
-                    Background="{StaticResource AccentFillBrush}">
-                <FontIcon Glyph="{Binding RecordButtonGlyph}" FontSize="24" Foreground="White"/>
-            </Button>
-
-            <ProgressBar Grid.Column="1" Value="{Binding AudioLevel, Mode=OneWay}" Maximum="1"
-                         VerticalAlignment="Center" Foreground="{StaticResource AccentGlowBrush}"/>
-
-            <StackPanel Grid.Column="2" Spacing="4" VerticalAlignment="Center">
-                <TextBlock Text="F9 Start/Stop dictation" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
-                <TextBlock Text="Alt Gr Start/Stop assistant" Foreground="{StaticResource AccentGlowBrush}" FontSize="12" FontWeight="SemiBold"/>
-                <TextBlock Text="F6 Pause" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
-                <TextBlock Text="F7 Cancel" Foreground="{StaticResource TextTertiaryBrush}" FontSize="12"/>
-            </StackPanel>
         </Grid>
-    </Grid>
+
+    </controls:PageShell>
 </Page>
