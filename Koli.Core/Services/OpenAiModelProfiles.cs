@@ -123,15 +123,83 @@ public static class OpenAiModelProfiles
     public static bool ShouldUseRealtimeTranscription(AzureOpenAISettings settings) =>
         CanUseOpenAiRealtimeWebSocket(settings) && IsRealtimeTranscriptionModel(settings.Model);
 
+    /// <summary>On-prem Ai Nexus WebSocket <c>/api/ai/realtime/transcribe</c> when live transcription is enabled.</summary>
+    public static bool CanUseOnPremRealtimeWebSocket(AzureOpenAISettings settings) =>
+        IsOnPremiseStyleEndpoint(settings.Endpoint) && settings.EnableStreamingTranscription;
+
+    /// <summary>
+    /// Legacy on-prem HTTP streaming (<c>queryAudio</c> + <c>stream=true</c>) when WebSocket is disabled or fails.
+    /// </summary>
+    public static bool CanUseOnPremHttpStreamingTranscription(AzureOpenAISettings settings) =>
+        IsOnPremiseStyleEndpoint(settings.Endpoint)
+        && settings.EnableStreamingTranscription
+        && settings.UseQueryAudioHttpStreamingFallback;
+
+    /// <summary>On-prem live transcription (WebSocket preferred, optional HTTP fallback).</summary>
+    public static bool CanUseOnPremStreamingTranscription(AzureOpenAISettings settings) =>
+        CanUseOnPremRealtimeWebSocket(settings) || CanUseOnPremHttpStreamingTranscription(settings);
+
+    /// <summary>Streaming POST URL; falls back to <see cref="AzureOpenAISettings.Endpoint"/> when unset.</summary>
+    public static string ResolveStreamingEndpoint(AzureOpenAISettings settings)
+    {
+        if (!string.IsNullOrWhiteSpace(settings.StreamingEndpoint))
+            return settings.StreamingEndpoint.TrimEnd('/');
+        return settings.Endpoint.TrimEnd('/');
+    }
+
+    /// <summary>
+    /// Builds <c>wss://…/api/ai/realtime/transcribe?x-api-key=…</c> from the configured HTTP endpoint or
+    /// <see cref="AzureOpenAISettings.RealtimeEndpoint"/> when set.
+    /// </summary>
+    public static string BuildOnPremRealtimeWebSocketUrl(AzureOpenAISettings settings)
+    {
+        if (!string.IsNullOrWhiteSpace(settings.RealtimeEndpoint))
+            return ToWebSocketUrl(settings.RealtimeEndpoint.Trim());
+
+        var httpBase = !string.IsNullOrWhiteSpace(settings.Endpoint)
+            ? settings.Endpoint.Trim()
+            : ResolveStreamingEndpoint(settings);
+
+        return ToWebSocketUrl(DeriveRealtimeHttpPath(httpBase));
+    }
+
+    internal static string DeriveRealtimeHttpPath(string httpUrl)
+    {
+        var uri = new Uri(httpUrl.TrimEnd('/'));
+        var path = uri.AbsolutePath;
+        var apiIdx = path.IndexOf("/api", StringComparison.OrdinalIgnoreCase);
+        path = apiIdx >= 0
+            ? path[..apiIdx] + "/api/ai/realtime/transcribe"
+            : "/api/ai/realtime/transcribe";
+
+        var builder = new UriBuilder(uri) { Path = path };
+        return builder.Uri.ToString();
+    }
+
+    private static string ToWebSocketUrl(string httpUrl)
+    {
+        var uri = new Uri(httpUrl.TrimEnd('/'));
+        var scheme = uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? "wss" : "ws";
+        var builder = new UriBuilder(uri) { Scheme = scheme, Port = uri.IsDefaultPort ? -1 : uri.Port };
+        return builder.Uri.ToString();
+    }
+
+    /// <summary>OpenAI Realtime WebSocket or on-prem live transcription.</summary>
+    public static bool ShouldUseLiveTranscription(AzureOpenAISettings settings) =>
+        ShouldUseRealtimeTranscription(settings) || CanUseOnPremStreamingTranscription(settings);
+
     /// <summary>
     /// Meeting mode always prefers live transcription: Realtime WebSocket on OpenAI cloud,
-    /// otherwise the configured on-prem/cloud HTTP model (chunked stream).
+    /// on-prem HTTP streaming when enabled, otherwise the configured HTTP model (chunked stream).
     /// </summary>
     public static AzureOpenAISettings CreateMeetingTranscriptionSettings(AzureOpenAISettings source)
     {
         var meeting = CloneSettings(source);
 
         if (ShouldUseRealtimeTranscription(meeting))
+            return meeting;
+
+        if (CanUseOnPremStreamingTranscription(meeting))
             return meeting;
 
         if (CanUseOpenAiRealtimeWebSocket(meeting))
@@ -146,6 +214,9 @@ public static class OpenAiModelProfiles
     public static bool WillMeetingUseRealtimeTranscription(AzureOpenAISettings source) =>
         ShouldUseRealtimeTranscription(CreateMeetingTranscriptionSettings(source));
 
+    public static bool WillMeetingUseLiveTranscription(AzureOpenAISettings source) =>
+        ShouldUseLiveTranscription(CreateMeetingTranscriptionSettings(source));
+
     private static AzureOpenAISettings CloneSettings(AzureOpenAISettings source) => new()
     {
         ApiKey = source.ApiKey,
@@ -159,6 +230,11 @@ public static class OpenAiModelProfiles
         ProviderId = source.ProviderId,
         TranscriptionPromptId = source.TranscriptionPromptId,
         FormattingPromptId = source.FormattingPromptId,
-        EnableSpeakerDiarization = source.EnableSpeakerDiarization
+        EnableSpeakerDiarization = source.EnableSpeakerDiarization,
+        EnableStreamingTranscription = source.EnableStreamingTranscription,
+        StreamingEndpoint = source.StreamingEndpoint,
+        StreamingProviderId = source.StreamingProviderId,
+        RealtimeEndpoint = source.RealtimeEndpoint,
+        UseQueryAudioHttpStreamingFallback = source.UseQueryAudioHttpStreamingFallback
     };
 }

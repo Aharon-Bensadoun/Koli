@@ -123,9 +123,12 @@ public sealed partial class MeetingViewModel : ObservableObject, IDisposable
             _meetingService.ParticipantDetected += OnParticipantDetected;
             _meetingService.ErrorLogging += (_, args) => _dispatcher.TryEnqueue(() => StatusText = $"Error: {args.Message}");
 
-            var usesRealtime = OpenAiModelProfiles.WillMeetingUseRealtimeTranscription(_settings.AzureOpenAI);
-            _debugLog.LogInfo(usesRealtime
-                ? $"Meeting started with live Realtime model: {meetingSttSettings.Model}"
+            var usesLive = OpenAiModelProfiles.WillMeetingUseLiveTranscription(_settings.AzureOpenAI);
+            var usesOnPremStreaming = OpenAiModelProfiles.CanUseOnPremStreamingTranscription(meetingSttSettings);
+            _debugLog.LogInfo(usesLive
+                ? usesOnPremStreaming
+                    ? $"Meeting started with on-prem HTTP streaming: {OpenAiModelProfiles.ResolveStreamingEndpoint(meetingSttSettings)}"
+                    : $"Meeting started with live Realtime model: {meetingSttSettings.Model}"
                 : $"Meeting started with chunked HTTP model: {meetingSttSettings.Model}");
 
             await _audioCapture.StartAsync(_cts.Token);
@@ -142,7 +145,7 @@ public sealed partial class MeetingViewModel : ObservableObject, IDisposable
             await _meetingService.StartAsync(stream, Title, source, participantNames, _cts.Token);
 
             IsRecording = true;
-            StatusText = usesRealtime ? "Recording (live)..." : "Recording...";
+            StatusText = usesLive ? "Recording (live)..." : "Recording...";
             StartTimer();
             StartCommand.NotifyCanExecuteChanged();
             StopCommand.NotifyCanExecuteChanged();

@@ -254,7 +254,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             await _audioCapture.StartAsync(_cancellationTokenSource.Token);
 
             _dictationUsedRealtime = mode == RecordingMode.Dictation
-                && OpenAiModelProfiles.ShouldUseRealtimeTranscription(_settings.AzureOpenAI);
+                && OpenAiModelProfiles.ShouldUseLiveTranscription(_settings.AzureOpenAI);
             if (_dictationUsedRealtime)
             {
                 _dictationRealtimeStt = new SpeechToTextService(_settings.AzureOpenAI, apiKey, _settings.Translation);
@@ -267,7 +267,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
                     _audioCapture.GetAudioStreamAsync(CancellationToken.None),
                     CancellationToken.None);
 
-                _debugLog.LogInfo("OpenAI Realtime transcription session started.");
+                _debugLog.LogInfo("Live transcription session started.");
             }
 
             _audioCapture.AudioLevelChanged += OnAudioLevelChanged;

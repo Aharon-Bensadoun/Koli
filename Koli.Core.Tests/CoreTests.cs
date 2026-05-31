@@ -200,6 +200,171 @@ public class OpenAiModelProfilesTests
         var json = OpenAiRealtimeTranscriptionSession.BuildSessionUpdateJson(settings);
         Assert.Contains("\"model\":\"gpt-realtime-whisper\"", json, StringComparison.Ordinal);
     }
+
+    [Theory]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", false, false)]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", true, true)]
+    [InlineData("https://api.openai.com", true, false)]
+    [InlineData("", true, false)]
+    public void CanUseOnPremStreamingTranscription_RequiresOnPremAndToggle(string endpoint, bool enabled, bool expected)
+    {
+        var settings = new AzureOpenAISettings { Endpoint = endpoint, EnableStreamingTranscription = enabled };
+        Assert.Equal(expected, OpenAiModelProfiles.CanUseOnPremStreamingTranscription(settings));
+    }
+
+    [Theory]
+    [InlineData("", false, false, false)]
+    [InlineData("", false, true, true)]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", true, false, true)]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", false, false, false)]
+    public void ShouldUseLiveTranscription_CombinesOpenAiAndOnPrem(
+        string endpoint, bool streamingEnabled, bool realtimeModel, bool expected)
+    {
+        var settings = new AzureOpenAISettings
+        {
+            Endpoint = endpoint,
+            EnableStreamingTranscription = streamingEnabled,
+            Model = realtimeModel ? "gpt-realtime-whisper" : "whisper-1"
+        };
+        Assert.Equal(expected, OpenAiModelProfiles.ShouldUseLiveTranscription(settings));
+    }
+
+    [Fact]
+    public void CreateMeetingTranscriptionSettings_KeepsOnPremStreamingSettings()
+    {
+        var source = new AzureOpenAISettings
+        {
+            Endpoint = "https://corp.example.com/api/AI/queryAudio",
+            Model = "whisper-1",
+            EnableStreamingTranscription = true,
+            StreamingEndpoint = "https://corp.example.com/api/AI/queryAudio/stream"
+        };
+        var meeting = OpenAiModelProfiles.CreateMeetingTranscriptionSettings(source);
+        Assert.Equal("whisper-1", meeting.Model);
+        Assert.True(meeting.EnableStreamingTranscription);
+        Assert.True(OpenAiModelProfiles.WillMeetingUseLiveTranscription(source));
+    }
+
+    [Fact]
+    public void ResolveStreamingEndpoint_FallsBackToEndpoint()
+    {
+        var settings = new AzureOpenAISettings
+        {
+            Endpoint = "https://corp.example.com/api/AI/queryAudio",
+            StreamingEndpoint = ""
+        };
+        Assert.Equal("https://corp.example.com/api/AI/queryAudio", OpenAiModelProfiles.ResolveStreamingEndpoint(settings));
+
+        settings.StreamingEndpoint = "https://corp.example.com/api/AI/queryAudio/live";
+        Assert.Equal("https://corp.example.com/api/AI/queryAudio/live", OpenAiModelProfiles.ResolveStreamingEndpoint(settings));
+    }
+
+    [Theory]
+    [InlineData("https://ai-connector.hadassah.org.il/api/ai/queryAudio", "wss://ai-connector.hadassah.org.il/api/ai/realtime/transcribe")]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", "wss://corp.example.com/api/ai/realtime/transcribe")]
+    public void BuildOnPremRealtimeWebSocketUrl_DerivesFromQueryAudioEndpoint(string endpoint, string expected)
+    {
+        var settings = new AzureOpenAISettings { Endpoint = endpoint };
+        Assert.Equal(expected, OpenAiModelProfiles.BuildOnPremRealtimeWebSocketUrl(settings));
+    }
+
+    [Fact]
+    public void BuildOnPremRealtimeWebSocketUrl_UsesExplicitRealtimeEndpoint()
+    {
+        var settings = new AzureOpenAISettings
+        {
+            Endpoint = "https://corp.example.com/api/ai/queryAudio",
+            RealtimeEndpoint = "https://custom.example.com/api/ai/realtime/transcribe"
+        };
+        Assert.Equal(
+            "wss://custom.example.com/api/ai/realtime/transcribe",
+            OpenAiModelProfiles.BuildOnPremRealtimeWebSocketUrl(settings));
+    }
+
+    [Theory]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", true, false, false)]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", true, true, true)]
+    [InlineData("https://corp.example.com/api/AI/queryAudio", false, true, false)]
+    public void CanUseOnPremHttpStreamingTranscription_RequiresFallbackFlag(
+        string endpoint, bool streamingEnabled, bool httpFallback, bool expected)
+    {
+        var settings = new AzureOpenAISettings
+        {
+            Endpoint = endpoint,
+            EnableStreamingTranscription = streamingEnabled,
+            UseQueryAudioHttpStreamingFallback = httpFallback
+        };
+        Assert.Equal(expected, OpenAiModelProfiles.CanUseOnPremHttpStreamingTranscription(settings));
+    }
+
+    [Fact]
+    public void OnPremRealtime_BuildStartMessage_IncludesProviderAndAutoLanguage()
+    {
+        var settings = new AzureOpenAISettings
+        {
+            ProviderId = 12,
+            OmitTranscriptionLanguage = true
+        };
+        var json = OnPremRealtimeTranscriptionSession.BuildStartMessage(settings, "fr");
+        Assert.Contains("\"type\":\"start\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"providerId\":12", json, StringComparison.Ordinal);
+        Assert.Contains("\"language\":\"auto\"", json, StringComparison.Ordinal);
+    }
+}
+
+public class OnPremStreamingResponseParserTests
+{
+    [Fact]
+    public void TryParseJsonPayload_ParsesNdJsonPartialAndFinal()
+    {
+        Assert.True(OnPremStreamingResponseParser.TryParseJsonPayload(
+            """{"Success":true,"Content":"Hello","final":false}""", out var partial));
+        Assert.True(partial.Success);
+        Assert.Equal("Hello", partial.Content);
+        Assert.False(partial.IsFinal);
+
+        Assert.True(OnPremStreamingResponseParser.TryParseJsonPayload(
+            """{"Success":true,"Content":"Hello world","isFinal":true}""", out var final));
+        Assert.True(final.IsFinal);
+        Assert.Equal("Hello world", final.Content);
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_ParsesSseEvents()
+    {
+        const string sse = """
+            data: {"Success":true,"Content":"Bonjour","IsFinal":false}
+
+            data: {"Success":true,"Content":"Bonjour monde","IsFinal":true}
+
+            """;
+        await using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(sse));
+        var events = new List<OnPremStreamingTranscriptEvent>();
+        await foreach (var evt in OnPremStreamingResponseParser.ReadStreamAsync(stream, "text/event-stream", CancellationToken.None))
+            events.Add(evt);
+
+        Assert.Equal(2, events.Count);
+        Assert.False(events[0].IsFinal);
+        Assert.True(events[1].IsFinal);
+        Assert.Equal("Bonjour monde", events[1].Content);
+    }
+
+    [Fact]
+    public async Task ReadStreamAsync_ParsesNdJsonLines()
+    {
+        const string ndjson = """
+            {"Success":true,"Content":"Line one","IsFinal":false}
+            {"Success":true,"Content":"Line one done","IsFinal":true}
+
+            """;
+        await using var stream = new MemoryStream(System.Text.Encoding.UTF8.GetBytes(ndjson));
+        var events = new List<OnPremStreamingTranscriptEvent>();
+        await foreach (var evt in OnPremStreamingResponseParser.ReadStreamAsync(stream, "application/x-ndjson", CancellationToken.None))
+            events.Add(evt);
+
+        Assert.Equal(2, events.Count);
+        Assert.Equal("Line one done", events[1].Content);
+    }
 }
 
 public class TranscriptionOutputLanguageServiceTests

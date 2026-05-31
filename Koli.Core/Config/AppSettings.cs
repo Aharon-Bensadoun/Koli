@@ -104,6 +104,16 @@ public sealed class AzureOpenAISettings
     public int? TranscriptionPromptId { get; set; }
     public int? FormattingPromptId { get; set; }
     public bool EnableSpeakerDiarization { get; set; } = false;
+    /// <summary>On-prem: when true, use live transcription (Ai Nexus WebSocket <c>/api/ai/realtime/transcribe</c>, or HTTP fallback if enabled).</summary>
+    public bool EnableStreamingTranscription { get; set; } = false;
+    /// <summary>On-prem HTTP streaming URL (<c>queryAudio</c> + <c>stream=true</c>); empty uses <see cref="Endpoint"/>.</summary>
+    public string StreamingEndpoint { get; set; } = "";
+    /// <summary>On-prem streaming multipart <c>providerId</c>; null uses <see cref="ProviderId"/>.</summary>
+    public int? StreamingProviderId { get; set; }
+    /// <summary>On-prem WebSocket URL; empty derives <c>wss://…/api/ai/realtime/transcribe</c> from <see cref="Endpoint"/>.</summary>
+    public string RealtimeEndpoint { get; set; } = "";
+    /// <summary>When true and WebSocket connect fails, fall back to rolling <c>queryAudio</c> HTTP streaming.</summary>
+    public bool UseQueryAudioHttpStreamingFallback { get; set; } = false;
 }
 
 public sealed class AudioSettings

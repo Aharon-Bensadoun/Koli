@@ -1,4 +1,5 @@
 using Koli.Config;
+using Koli.Services;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Media;
@@ -14,6 +15,10 @@ public sealed class ApiConfigurationDialog : ContentDialog
     private readonly TextBox _endpointBox;
     private readonly ComboBox _modelBox;
     private readonly TextBox _providerIdBox;
+    private readonly StackPanel _onPremStreamingPanel;
+    private readonly CheckBox _enableStreamingCheckBox;
+    private readonly TextBox _streamingEndpointBox;
+    private readonly TextBox _streamingProviderIdBox;
 
     public bool Result { get; private set; }
 
@@ -128,6 +133,48 @@ public sealed class ApiConfigurationDialog : ContentDialog
         };
         panel.Children.Add(_providerIdBox);
 
+        _enableStreamingCheckBox = new CheckBox
+        {
+            Content = "Live transcription (WebSocket realtime/transcribe)",
+            IsChecked = settings.EnableStreamingTranscription
+        };
+        var realtimeEndpointBox = new TextBox
+        {
+            Header = "Realtime WebSocket URL (optional — empty = derived from Endpoint)",
+            Text = settings.RealtimeEndpoint,
+            PlaceholderText = "wss://your-server.example.com/api/ai/realtime/transcribe"
+        };
+        var httpFallbackCheckBox = new CheckBox
+        {
+            Content = "Fallback to queryAudio HTTP streaming if WebSocket fails",
+            IsChecked = settings.UseQueryAudioHttpStreamingFallback
+        };
+        _streamingEndpointBox = new TextBox
+        {
+            Header = "HTTP streaming endpoint (fallback only)",
+            Text = settings.StreamingEndpoint,
+            PlaceholderText = "https://your-server.example.com/api/ai/queryAudio"
+        };
+        _streamingProviderIdBox = new TextBox
+        {
+            Header = "Streaming provider ID (optional — empty = Provider ID above)",
+            Text = settings.StreamingProviderId?.ToString() ?? ""
+        };
+        _onPremStreamingPanel = new StackPanel
+        {
+            Spacing = 10,
+            Visibility = IsOnPremEndpoint(settings.Endpoint) ? Visibility.Visible : Visibility.Collapsed
+        };
+        _onPremStreamingPanel.Children.Add(_enableStreamingCheckBox);
+        _onPremStreamingPanel.Children.Add(realtimeEndpointBox);
+        _onPremStreamingPanel.Children.Add(httpFallbackCheckBox);
+        _onPremStreamingPanel.Children.Add(_streamingEndpointBox);
+        _onPremStreamingPanel.Children.Add(_streamingProviderIdBox);
+        panel.Children.Add(_onPremStreamingPanel);
+
+        _endpointBox.TextChanged += (_, _) =>
+            _onPremStreamingPanel.Visibility = IsOnPremEndpoint(_endpointBox.Text) ? Visibility.Visible : Visibility.Collapsed;
+
         Content = panel;
 
         PrimaryButtonClick += (_, _) =>
@@ -140,6 +187,14 @@ public sealed class ApiConfigurationDialog : ContentDialog
                 _settings.ProviderId = providerId;
             else
                 _settings.ProviderId = null;
+            _settings.EnableStreamingTranscription = _enableStreamingCheckBox.IsChecked == true;
+            _settings.RealtimeEndpoint = realtimeEndpointBox.Text.Trim();
+            _settings.UseQueryAudioHttpStreamingFallback = httpFallbackCheckBox.IsChecked == true;
+            _settings.StreamingEndpoint = _streamingEndpointBox.Text.Trim();
+            if (int.TryParse(_streamingProviderIdBox.Text, out var streamingProviderId))
+                _settings.StreamingProviderId = streamingProviderId;
+            else
+                _settings.StreamingProviderId = null;
             Result = true;
         };
 
@@ -164,4 +219,7 @@ public sealed class ApiConfigurationDialog : ContentDialog
         _apiKeyTextBox.Visibility = Visibility.Collapsed;
         _apiKeyPasswordBox.Visibility = Visibility.Visible;
     }
+
+    private static bool IsOnPremEndpoint(string? endpoint) =>
+        OpenAiModelProfiles.IsOnPremiseStyleEndpoint(endpoint);
 }

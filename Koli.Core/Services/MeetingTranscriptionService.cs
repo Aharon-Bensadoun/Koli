@@ -79,7 +79,7 @@ public sealed class MeetingTranscriptionService : IAsyncDisposable
         {
             try
             {
-                if (_sttService.UsesRealtimeTranscription)
+                if (_sttService.UsesLiveTranscription)
                     await ProcessRealtimeMeetingStreamAsync(audioStream, participantHints, _cts.Token).ConfigureAwait(false);
                 else
                     await ProcessAudioStreamAsync(audioStream, participantHints, _cts.Token).ConfigureAwait(false);

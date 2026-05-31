@@ -42,6 +42,9 @@ public sealed class SpeechToTextService : IAsyncDisposable
     /// <summary>True when <see cref="AzureOpenAISettings.Model"/> is a Realtime model and the endpoint supports <c>wss://api.openai.com/v1/realtime</c>.</summary>
     public bool UsesRealtimeTranscription => OpenAiModelProfiles.ShouldUseRealtimeTranscription(_settings);
 
+    /// <summary>OpenAI Realtime WebSocket or on-prem HTTP streaming (<c>stream=true</c>).</summary>
+    public bool UsesLiveTranscription => OpenAiModelProfiles.ShouldUseLiveTranscription(_settings);
+
     private CancellationTokenSource? _realtimeCts;
     private Task? _realtimeTask;
 
@@ -103,9 +106,9 @@ public sealed class SpeechToTextService : IAsyncDisposable
 
     private async Task StreamAsync(IAsyncEnumerable<byte[]> audioStream, CancellationToken cancellationToken)
     {
-        if (UsesRealtimeTranscription)
+        if (UsesLiveTranscription)
         {
-            ErrorLogging?.Invoke(this, ("Realtime models use RunRealtimeTranscriptionAsync instead of chunk HTTP mode.", null));
+            ErrorLogging?.Invoke(this, ("Live transcription uses RunRealtimeTranscriptionAsync instead of chunk HTTP mode.", null));
             return;
         }
 
@@ -172,9 +175,9 @@ public sealed class SpeechToTextService : IAsyncDisposable
             return;
         }
 
-        if (UsesRealtimeTranscription)
+        if (UsesLiveTranscription)
         {
-            ErrorLogging?.Invoke(this, ("TranscribeAudioAsync is not used for Realtime models; transcription runs during capture.", null));
+            ErrorLogging?.Invoke(this, ("TranscribeAudioAsync is not used for live transcription models; transcription runs during capture.", null));
             return;
         }
 
@@ -196,9 +199,9 @@ public sealed class SpeechToTextService : IAsyncDisposable
         bool periodicBufferCommits = false,
         int periodicCommitIntervalSeconds = 6)
     {
-        if (!UsesRealtimeTranscription)
+        if (!UsesLiveTranscription)
         {
-            ErrorLogging?.Invoke(this, ("RunRealtimeTranscriptionAsync requires a Realtime transcription model and api.openai.com.", null));
+            ErrorLogging?.Invoke(this, ("RunRealtimeTranscriptionAsync requires OpenAI Realtime or on-prem streaming.", null));
             return Task.CompletedTask;
         }
 
@@ -208,6 +211,19 @@ public sealed class SpeechToTextService : IAsyncDisposable
         _realtimeCts?.Dispose();
         _realtimeCts = new CancellationTokenSource();
         var token = _realtimeCts.Token;
+
+        if (OpenAiModelProfiles.CanUseOnPremStreamingTranscription(_settings))
+        {
+            _realtimeTask = Task.Run(async () =>
+            {
+                await RunOnPremLiveTranscriptionAsync(
+                    pcm16kChunks,
+                    periodicCommitIntervalSeconds,
+                    token).ConfigureAwait(false);
+            }, CancellationToken.None);
+
+            return _realtimeTask;
+        }
 
         var wssUrl = OpenAiRealtimeTranscriptionSession.BuildWebSocketUrl(_settings);
         var realtimePlan = ResolveRealtimePlan();
@@ -260,6 +276,69 @@ public sealed class SpeechToTextService : IAsyncDisposable
         }, CancellationToken.None);
 
         return _realtimeTask;
+    }
+
+    private async Task RunOnPremLiveTranscriptionAsync(
+        IAsyncEnumerable<byte[]> pcm16kChunks,
+        int windowDurationSeconds,
+        CancellationToken cancellationToken)
+    {
+        var wssUrl = OpenAiModelProfiles.BuildOnPremRealtimeWebSocketUrl(_settings);
+
+        if (OpenAiModelProfiles.CanUseOnPremRealtimeWebSocket(_settings))
+        {
+            await using var wsSession = new OnPremRealtimeTranscriptionSession(_settings, _apiKey, _currentLanguage);
+            var connected = await wsSession.RunAsync(
+                pcm16kChunks,
+                e => RealtimeTranscript?.Invoke(this, e),
+                (msg, ex) => ErrorLogging?.Invoke(this, (msg, ex)),
+                (method, body) =>
+                {
+                    try
+                    {
+                        var url = method == "CONNECT" ? (body ?? wssUrl) : wssUrl;
+                        RequestLogging?.Invoke(this, (method, url, new Dictionary<string, string>(), body));
+                    }
+                    catch { /* debug logging must not break session */ }
+                },
+                (method, body) =>
+                {
+                    try
+                    {
+                        ResponseLogging?.Invoke(this, (200, method, new Dictionary<string, string>(), body));
+                    }
+                    catch { /* debug logging must not break session */ }
+                },
+                cancellationToken).ConfigureAwait(false);
+
+            if (connected || !OpenAiModelProfiles.CanUseOnPremHttpStreamingTranscription(_settings))
+                return;
+
+            ErrorLogging?.Invoke(this, (
+                "On-prem realtime WebSocket unavailable; falling back to queryAudio HTTP streaming.",
+                null));
+        }
+
+        if (!OpenAiModelProfiles.CanUseOnPremHttpStreamingTranscription(_settings))
+            return;
+
+        var httpSession = new OnPremQueryAudioStreamingSession(_httpClient, _settings, _apiKey, _currentLanguage);
+        await httpSession.RunAsync(
+            pcm16kChunks,
+            windowDurationSeconds,
+            e => RealtimeTranscript?.Invoke(this, e),
+            (msg, ex) => ErrorLogging?.Invoke(this, (msg, ex)),
+            (method, url, headers, body) =>
+            {
+                try { RequestLogging?.Invoke(this, (method, url, headers, body)); }
+                catch { /* debug logging must not break session */ }
+            },
+            (status, reason, headers, body) =>
+            {
+                try { ResponseLogging?.Invoke(this, (status, reason, headers, body)); }
+                catch { /* debug logging must not break session */ }
+            },
+            cancellationToken).ConfigureAwait(false);
     }
 
     /// <summary>Cancels an in-flight <see cref="RunRealtimeTranscriptionAsync"/> session.</summary>
@@ -334,7 +413,7 @@ public sealed class SpeechToTextService : IAsyncDisposable
 
     private async Task ProcessChunkAsync(byte[] audioData, CancellationToken cancellationToken)
     {
-        if (UsesRealtimeTranscription)
+        if (UsesLiveTranscription)
             return;
 
         if (UseOnPremiseApi)
@@ -618,7 +697,7 @@ public sealed class SpeechToTextService : IAsyncDisposable
         if (audioData == null || audioData.Length < 1000)
             return null;
 
-        if (UsesRealtimeTranscription)
+        if (UsesLiveTranscription)
             return null;
 
         if (UseOnPremiseApi)

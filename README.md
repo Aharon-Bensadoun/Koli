@@ -165,12 +165,30 @@ All settings live in `Config/appsettings.json`. The file is structured into the 
 | `TranscriptionPromptId` | int? | `null` | *On-premise only.* Prompt template ID for transcription. |
 | `FormattingPromptId` | int? | `null` | *On-premise only.* Prompt template ID for post-transcription formatting. |
 | `EnableSpeakerDiarization` | bool | `false` | *On-premise only.* Enable speaker diarization on the server side. |
+| `EnableStreamingTranscription` | bool | `false` | *On-premise only.* When `true`, use WebSocket live STT (`/api/ai/realtime/transcribe`) in meeting and dictation (see [On-prem live transcription](#on-prem-live-transcription-ai-nexus)). |
+| `RealtimeEndpoint` | string | `""` | *On-prem only.* Optional `wss://…/api/ai/realtime/transcribe` URL; empty derives from `Endpoint`. |
+| `UseQueryAudioHttpStreamingFallback` | bool | `false` | *On-prem only.* If WebSocket connect fails, fall back to rolling `queryAudio` HTTP streaming. |
+| `StreamingEndpoint` | string | `""` | *HTTP fallback only.* Optional `queryAudio` URL for fallback POSTs; empty uses `Endpoint`. |
+| `StreamingProviderId` | int? | `null` | *On-prem live.* Optional `providerId` for WebSocket `start` / HTTP fallback; empty uses `ProviderId`. |
 
 #### OpenAI Realtime transcription (`gpt-realtime-whisper`, `gpt-realtime`)
 
 These models connect over WebSocket (`wss://api.openai.com/v1/realtime?model=…`) and open a **realtime** session. The app sends `session.update` with `session.type: "realtime"` and enables [`audio.input.transcription`](https://developers.openai.com/api/docs/guides/realtime-websocket), so transcript deltas arrive *during* recording in both dictation and meeting modes. Audio is resampled from the capture rate (16 kHz) to 24 kHz PCM as required by OpenAI's session format. Meeting speaker separation still runs in the background through the GPT-4o diarization HTTP call (unchanged).
 
-> ⚠️ Realtime WebSocket is currently wired only for the public OpenAI endpoint (`api.openai.com`). Azure OpenAI Realtime and on-premise URLs fall back to the HTTP batch path automatically.
+> ⚠️ OpenAI Realtime WebSocket (`wss://api.openai.com/v1/realtime`) is wired only for the public OpenAI endpoint. Azure OpenAI Realtime falls back to chunked HTTP.
+
+#### On-prem live transcription (Ai Nexus)
+
+When `Endpoint` does not contain `openai.com` and `EnableStreamingTranscription` is `true`, Koli uses the **Ai Nexus WebSocket** documented by Hadassah:
+
+- **URL**: `wss://{host}/api/ai/realtime/transcribe` (derived from `Endpoint`, or set `RealtimeEndpoint` explicitly).
+- **Auth**: `x-api-key` header at handshake (same key as batch `queryAudio`).
+- **Protocol**: JSON messages — `start` (`providerId`, `language` / `auto`, `externalUser`), `audio` (base64 PCM16 mono **24 kHz**), `stop`; server sends `session_ready`, `partial`, `final`, `error`, `done`.
+- **Capture**: microphone PCM at 16 kHz, resampled to 24 kHz before send (~100 ms chunks).
+
+Enable the toggle in **Settings → API configuration** when an on-prem endpoint is configured, or set `EnableStreamingTranscription` in `appsettings.json`. **Meeting** and **dictation (Home)** both use this live path when enabled.
+
+**Optional HTTP fallback** (`UseQueryAudioHttpStreamingFallback`): if the WebSocket cannot connect, Koli can fall back to legacy rolling **POST** `queryAudio` with `stream=true` (SSE/NDJSON), using `StreamingEndpoint` when set.
 
 #### Standard OpenAI example
 
@@ -209,6 +227,11 @@ If `Endpoint` is set to a URL that does **not** contain `openai.com`, the applic
   "TranscriptionPromptId": 11,
   "FormattingPromptId": 9,
   "EnableSpeakerDiarization": false,
+  "EnableStreamingTranscription": true,
+  "RealtimeEndpoint": "",
+  "UseQueryAudioHttpStreamingFallback": false,
+  "StreamingEndpoint": "",
+  "StreamingProviderId": null,
   "Language": "fr"
 }
 ```
@@ -289,7 +312,7 @@ If `Endpoint` is set to a URL that does **not** contain `openai.com`, the applic
 | Key | Default | Description |
 |---|---|---|
 | `DefaultAudioSource` | `"Microphone"` | Audio source preselected when opening Meeting mode. One of `"Microphone"`, `"SystemAudio"`. The combined "Mic + System Audio" option is also available in the UI. |
-| `ChunkDurationSeconds` | `6` | Length of each audio chunk sent for HTTP transcription. Lower = faster updates, higher = better context. Ignored when using Realtime WebSocket models. |
+| `ChunkDurationSeconds` | `6` | Length of each audio chunk sent for HTTP transcription. Used for on-prem **HTTP fallback** windows and OpenAI periodic commits. Ignored for OpenAI / on-prem WebSocket live transcription. |
 | `TranscriptSavePath` | `"Meetings"` | Folder (relative to the executable) where transcripts are saved. |
 | `AutoSaveTranscript` | `true` | When `true`, the transcript is automatically saved (TXT + JSON) when the meeting ends. |
 
@@ -441,7 +464,7 @@ Meeting mode is dedicated to multi-speaker scenarios (interviews, stand-ups, cal
 ### What it does
 
 - Captures audio from the **microphone**, the **system output** (WASAPI loopback), or **both combined**.
-- Sends audio in real time to the configured STT model (HTTP chunks or Realtime WebSocket).
+- Sends audio in real time to the configured STT model (OpenAI Realtime WebSocket, on-prem HTTP streaming with `stream=true`, or chunked HTTP batch).
 - Runs a **GPT-4o diarization** pass over each chunk to label utterances with speaker IDs, preserving speaker consistency across the meeting.
 - Displays a live transcript with **color-coded speakers** and timestamps.
 - Lets you pre-declare participants (via the *Participants* dialog at the start of the meeting) so the model uses their real names instead of generic `Speaker 1 / 2 / 3`.
