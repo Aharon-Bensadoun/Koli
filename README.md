@@ -504,7 +504,7 @@ Config/
 
 ### Requirements
 
-- .NET 8.0 SDK
+- .NET 8.0 SDK (8.0.402 or later; the repo pins **8.0.421** via `global.json` so WinUI builds do not use a .NET 9 SDK host by default)
 - Visual Studio 2022, Visual Studio Code, or JetBrains Rider
 - Git
 
@@ -529,6 +529,39 @@ In development the application looks for `Config/appsettings.json` relative to t
 ## 🔨 Production Build
 
 ### MSIX package (recommended for distribution)
+
+#### Signing certificate
+
+MSIX builds are signed with a self-signed certificate referenced by thumbprint in `Koli.WinUI/Koli.WinUI.csproj`. If the build fails with `APPX0102` (certificate not found) or `APPX0107` (certificate not valid for signing), generate a new cert in PowerShell:
+
+```powershell
+$cert = New-SelfSignedCertificate `
+  -Type Custom `
+  -Subject "CN=Aharon Bensadoun" `
+  -KeyUsage DigitalSignature `
+  -FriendlyName "Koli MSIX Signing" `
+  -CertStoreLocation "Cert:\CurrentUser\My" `
+  -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+
+$cert.Thumbprint
+```
+
+Copy the thumbprint and update `PackageCertificateThumbprint` in `Koli.WinUI/Koli.WinUI.csproj`.
+
+Optionally export a `.cer` for end users (included in the release package):
+
+```powershell
+Export-Certificate -Cert $cert -FilePath ".\Koli.WinUI.cer"
+```
+
+Optionally back up a `.pfx` locally (already gitignored):
+
+```powershell
+$pwd = Read-Host "PFX password" -AsSecureString
+Export-PfxCertificate -Cert $cert -FilePath ".\Koli.WinUI.pfx" -Password $pwd
+```
+
+#### Build
 
 Build a signed MSIX installer for sideloading:
 
