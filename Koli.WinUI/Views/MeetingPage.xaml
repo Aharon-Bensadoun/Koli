@@ -5,7 +5,9 @@
     xmlns:controls="using:Koli.WinUI.Controls"
     xmlns:vm="using:Koli.WinUI.ViewModels">
 
-    <controls:PageShell Title="Meeting" Subtitle="Capture a multi-speaker conversation in real time">
+    <controls:PageShell Eyebrow="MEETING MODE"
+                        Title="Multi-speaker capture"
+                        Subtitle="Diarized transcript with per-speaker color and export">
 
         <controls:PageShell.HeaderActions>
             <StackPanel Orientation="Horizontal" Spacing="{StaticResource SpacingS}">
@@ -34,15 +36,18 @@
             </StackPanel>
         </controls:PageShell.HeaderActions>
 
-        <Grid RowSpacing="{StaticResource SpacingL}" MaxWidth="{StaticResource PageContentMaxWidth}" HorizontalAlignment="Stretch">
+        <Grid RowSpacing="{StaticResource SpacingXL}"
+              MaxWidth="{StaticResource PageContentMaxWidth}"
+              HorizontalAlignment="Stretch">
             <Grid.RowDefinitions>
                 <RowDefinition Height="Auto"/>
                 <RowDefinition Height="*"/>
                 <RowDefinition Height="Auto"/>
             </Grid.RowDefinitions>
 
+            <!-- Session metadata strip -->
             <Border Style="{StaticResource CardBorderStyle}">
-                <Grid ColumnSpacing="{StaticResource SpacingM}" RowSpacing="{StaticResource SpacingS}">
+                <Grid ColumnSpacing="{StaticResource SpacingL}" RowSpacing="{StaticResource SpacingS}">
                     <Grid.ColumnDefinitions>
                         <ColumnDefinition Width="2*"/>
                         <ColumnDefinition Width="*"/>
@@ -62,17 +67,19 @@
                               HorizontalAlignment="Stretch"
                               ItemsSource="{Binding AudioSources}"
                               SelectedIndex="{Binding AudioSourceIndex, Mode=TwoWay}"/>
-                    <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Spacing="2">
-                        <TextBlock Text="Status" Style="{StaticResource SectionLabelStyle}"/>
+                    <StackPanel Grid.Column="2" VerticalAlignment="Bottom" Spacing="4">
+                        <TextBlock Text="STATUS" Style="{StaticResource EyebrowLabelStyle}"/>
                         <TextBlock Text="{Binding StatusText}"
                                    Style="{StaticResource CaptionMutedTextStyle}"
                                    VerticalAlignment="Center"/>
                     </StackPanel>
-                    <StackPanel Grid.Column="3" VerticalAlignment="Bottom" Spacing="2" HorizontalAlignment="Right">
-                        <TextBlock Text="Duration" Style="{StaticResource SectionLabelStyle}" HorizontalAlignment="Right"/>
+                    <StackPanel Grid.Column="3" VerticalAlignment="Bottom" Spacing="4" HorizontalAlignment="Right">
+                        <TextBlock Text="DURATION"
+                                   Style="{StaticResource EyebrowLabelStyle}"
+                                   HorizontalAlignment="Right"/>
                         <TextBlock Text="{Binding TimerText}"
-                                   FontFamily="Cascadia Mono" FontSize="14"
-                                   Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                   FontFamily="Cascadia Mono" FontSize="16" FontWeight="SemiBold"
+                                   Foreground="{ThemeResource TextPrimaryBrush}"/>
                     </StackPanel>
 
                     <StackPanel Grid.Row="1" Grid.ColumnSpan="4"
@@ -81,71 +88,86 @@
                         <Border Style="{StaticResource AccentChipBorderStyle}">
                             <StackPanel Orientation="Horizontal" Spacing="6">
                                 <FontIcon Glyph="&#xF2B7;" FontSize="11"
-                                          Foreground="{StaticResource AccentGlowBrush}"/>
+                                          Foreground="{StaticResource AuroraGlowBrush}"/>
                                 <TextBlock Text="{Binding OutputLanguageBadge}"
                                            FontSize="12" FontWeight="SemiBold"
-                                           Foreground="{StaticResource AccentGlowBrush}"/>
+                                           Foreground="{StaticResource AuroraGlowBrush}"/>
                             </StackPanel>
                         </Border>
                     </StackPanel>
                 </Grid>
             </Border>
 
-            <Grid Grid.Row="1" ColumnSpacing="{StaticResource SpacingL}">
+            <!-- Transcript + participants -->
+            <Grid Grid.Row="1" ColumnSpacing="{StaticResource SpacingXL}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="3*"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
 
-                <Border Style="{StaticResource CardBorderStyle}" Padding="0">
+                <Border Style="{StaticResource HeroCardStyle}" Padding="0">
                     <Grid RowSpacing="{StaticResource SpacingS}">
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto"/>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
-                        <Grid Padding="16,12,16,4" ColumnSpacing="8">
+                        <Grid Padding="24,20,24,8" ColumnSpacing="10">
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Transcript"
-                                       Style="{StaticResource SubtitleTextBlockStyle}"
-                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                       Style="{StaticResource HeroTitleStyle}"/>
                             <Border Grid.Column="1" Style="{StaticResource ChipBorderStyle}">
                                 <TextBlock Text="{Binding Segments.Count, Mode=OneWay, FallbackValue=0}"
                                            FontSize="11" FontWeight="SemiBold"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                           Foreground="{ThemeResource TextSecondaryBrush}"/>
                             </Border>
                         </Grid>
 
-                        <ScrollViewer Grid.Row="1" Padding="16,0,16,16" VerticalScrollBarVisibility="Auto">
+                        <controls:AuroraDivider Grid.Row="1" Margin="24,0"/>
+
+                        <ScrollViewer Grid.Row="2" Padding="24,12,24,24" VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding Segments}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:MeetingSegmentViewModel">
-                                        <Border Background="{ThemeResource CardBackgroundFillColorSecondaryBrush}"
-                                                BorderBrush="{ThemeResource ControlStrokeColorDefaultBrush}"
-                                                BorderThickness="1"
-                                                CornerRadius="{StaticResource RadiusMedium}"
-                                                Padding="12"
-                                                Margin="0,0,0,8">
-                                            <Grid RowSpacing="4">
-                                                <Grid.RowDefinitions>
-                                                    <RowDefinition Height="Auto"/>
-                                                    <RowDefinition Height="Auto"/>
-                                                </Grid.RowDefinitions>
-                                                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                                                    <Ellipse Width="10" Height="10"
-                                                             Fill="{x:Bind ColorHex, Converter={StaticResource HexToBrushConverter}}"/>
-                                                    <TextBlock Text="{x:Bind SpeakerId}"
-                                                               FontWeight="SemiBold"
-                                                               Foreground="{x:Bind ColorHex, Converter={StaticResource HexToBrushConverter}}"/>
-                                                </StackPanel>
-                                                <TextBlock Grid.Row="1"
-                                                           Text="{x:Bind Text}"
-                                                           TextWrapping="WrapWholeWords"
-                                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
-                                            </Grid>
-                                        </Border>
+                                        <Grid Margin="0,0,0,10" ColumnSpacing="12">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="3"/>
+                                                <ColumnDefinition Width="*"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Left aurora-tinted rail -->
+                                            <Border Width="3"
+                                                    Background="{x:Bind ColorHex, Converter={StaticResource HexToBrushConverter}}"
+                                                    CornerRadius="2"/>
+
+                                            <Border Grid.Column="1"
+                                                    Background="{ThemeResource CardSubtleBackgroundBrush}"
+                                                    BorderBrush="{ThemeResource StrokeHairlineBrush}"
+                                                    BorderThickness="1"
+                                                    CornerRadius="{StaticResource RadiusMedium}"
+                                                    Padding="14,12">
+                                                <Grid RowSpacing="6">
+                                                    <Grid.RowDefinitions>
+                                                        <RowDefinition Height="Auto"/>
+                                                        <RowDefinition Height="Auto"/>
+                                                    </Grid.RowDefinitions>
+                                                    <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                                                        <Ellipse Width="10" Height="10"
+                                                                 Fill="{x:Bind ColorHex, Converter={StaticResource HexToBrushConverter}}"/>
+                                                        <TextBlock Text="{x:Bind SpeakerId}"
+                                                                   FontWeight="SemiBold"
+                                                                   FontSize="13"
+                                                                   Foreground="{x:Bind ColorHex, Converter={StaticResource HexToBrushConverter}}"/>
+                                                    </StackPanel>
+                                                    <TextBlock Grid.Row="1"
+                                                               Text="{x:Bind Text}"
+                                                               Style="{StaticResource BodyTextStyle}"/>
+                                                </Grid>
+                                            </Border>
+                                        </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
                             </ItemsControl>
@@ -154,8 +176,9 @@
                 </Border>
 
                 <Border Grid.Column="1" Style="{StaticResource CardBorderStyle}">
-                    <Grid RowSpacing="{StaticResource SpacingS}">
+                    <Grid RowSpacing="{StaticResource SpacingM}">
                         <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto"/>
                             <RowDefinition Height="Auto"/>
                             <RowDefinition Height="*"/>
                         </Grid.RowDefinitions>
@@ -165,24 +188,24 @@
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
                             <TextBlock Text="Participants"
-                                       Style="{StaticResource SubtitleTextBlockStyle}"
-                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                       Style="{StaticResource HeroTitleStyle}"/>
                             <Border Grid.Column="1" Style="{StaticResource ChipBorderStyle}">
                                 <TextBlock Text="{Binding Participants.Count, Mode=OneWay, FallbackValue=0}"
                                            FontSize="11" FontWeight="SemiBold"
-                                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                           Foreground="{ThemeResource TextSecondaryBrush}"/>
                             </Border>
                         </Grid>
-                        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <controls:AuroraDivider Grid.Row="1"/>
+                        <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                             <ItemsControl ItemsSource="{Binding Participants}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:ParticipantViewModel">
-                                        <Grid ColumnSpacing="10" Margin="0,4">
+                                        <Grid ColumnSpacing="12" Margin="0,6">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
                                             </Grid.ColumnDefinitions>
-                                            <PersonPicture Width="32" Height="32"
+                                            <PersonPicture Width="36" Height="36"
                                                            DisplayName="{x:Bind Name}"
                                                            Initials="{x:Bind Name, Converter={StaticResource NameToInitialsConverter}}"
                                                            BorderBrush="{x:Bind ColorHex, Converter={StaticResource HexToBrushConverter}}"
@@ -190,7 +213,8 @@
                                             <TextBlock Grid.Column="1"
                                                        Text="{x:Bind Name}"
                                                        VerticalAlignment="Center"
-                                                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                                                       FontWeight="SemiBold"
+                                                       Foreground="{ThemeResource TextPrimaryBrush}"/>
                                         </Grid>
                                     </DataTemplate>
                                 </ItemsControl.ItemTemplate>
@@ -200,21 +224,17 @@
                 </Border>
             </Grid>
 
-            <Grid Grid.Row="2" ColumnSpacing="{StaticResource SpacingS}">
+            <!-- Audio level (waveform) -->
+            <Grid Grid.Row="2" ColumnSpacing="{StaticResource SpacingL}">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="Auto"/>
                     <ColumnDefinition Width="*"/>
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Audio level"
-                           Style="{StaticResource CaptionMutedTextStyle}"
+                <TextBlock Text="AUDIO"
+                           Style="{StaticResource EyebrowLabelStyle}"
                            VerticalAlignment="Center"/>
-                <ProgressBar Grid.Column="1"
-                             Value="{Binding AudioLevel, Mode=OneWay}"
-                             Maximum="1"
-                             Height="6"
-                             VerticalAlignment="Center"
-                             Foreground="{StaticResource AccentPrimaryBrush}"
-                             Background="{ThemeResource ControlFillColorTertiaryBrush}"/>
+                <controls:WaveformBar Grid.Column="1"
+                                      Level="{Binding AudioLevel, Mode=OneWay}"/>
             </Grid>
         </Grid>
 

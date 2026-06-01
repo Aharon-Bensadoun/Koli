@@ -1,0 +1,7 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    <!-- Motion vocabulary intentionally kept empty: storyboards live inline on
+         consuming controls (WinUI rejects keyed Storyboards re-used across visuals)
+         and transition collections live inline on consumers (x:Shared semantics). -->
+</ResourceDictionary>

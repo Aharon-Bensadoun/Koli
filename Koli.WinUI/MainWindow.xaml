@@ -12,7 +12,7 @@
 
         <Grid x:Name="AppTitleBar"
               Height="{StaticResource TitleBarHeight}"
-              Padding="12,0,0,0">
+              Padding="16,0,0,0">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="Auto"/>
                 <ColumnDefinition Width="Auto"/>
@@ -21,40 +21,71 @@
                 <ColumnDefinition Width="140"/>
             </Grid.ColumnDefinitions>
 
-            <Image Source="ms-appx:///Assets/Koli.png"
-                   Width="18" Height="18"
-                   VerticalAlignment="Center"/>
+            <Image Width="20" Height="20"
+                   VerticalAlignment="Center">
+                <Image.Source>
+                    <BitmapImage UriSource="ms-appx:///Assets/Koli.png"
+                                 DecodePixelType="Logical"
+                                 DecodePixelWidth="20"
+                                 DecodePixelHeight="20"/>
+                </Image.Source>
+            </Image>
 
-            <TextBlock Grid.Column="1"
-                       Text="Koli"
-                       Margin="10,0,0,0"
-                       VerticalAlignment="Center"
-                       Style="{StaticResource CaptionTextBlockStyle}"
-                       Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+            <!-- Wordmark: "K" aurora gradient + "oli" primary text -->
+            <StackPanel Grid.Column="1"
+                        Orientation="Horizontal"
+                        Margin="12,0,0,0"
+                        VerticalAlignment="Center">
+                <TextBlock Text="K"
+                           FontFamily="Segoe UI Variable Display"
+                           FontSize="14"
+                           FontWeight="Bold"
+                           CharacterSpacing="-6"
+                           Foreground="{StaticResource AuroraDiagonalBrush}"
+                           VerticalAlignment="Center"/>
+                <TextBlock Text="oli"
+                           FontFamily="Segoe UI Variable Display"
+                           FontSize="14"
+                           FontWeight="SemiBold"
+                           CharacterSpacing="-6"
+                           Foreground="{ThemeResource TextPrimaryBrush}"
+                           VerticalAlignment="Center"/>
+            </StackPanel>
 
             <StackPanel Grid.Column="3"
                         Orientation="Horizontal"
                         Spacing="8"
                         VerticalAlignment="Center"
-                        Margin="0,0,12,0">
+                        Margin="0,0,16,0">
+
+                <!-- Vertical divider before badges -->
+                <Border Width="1" Height="16"
+                        Background="{ThemeResource StrokeSoftBrush}"
+                        VerticalAlignment="Center"
+                        Opacity="0.6"
+                        Margin="0,0,4,0"/>
+
                 <Border x:Name="TitleBarRecBadge"
                         Style="{StaticResource RecordingChipBorderStyle}"
                         Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+<StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
                         <Ellipse Width="8" Height="8" Fill="{StaticResource RecordingPrimaryBrush}"/>
                         <TextBlock Text="REC"
                                    FontSize="11" FontWeight="SemiBold"
+                                   CharacterSpacing="60"
                                    Foreground="{StaticResource RecordingPrimaryBrush}"/>
                     </StackPanel>
                 </Border>
+
                 <Border x:Name="TitleBarAssistantBadge"
                         Style="{StaticResource AccentChipBorderStyle}"
                         Visibility="Collapsed">
-                    <StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
-                        <Ellipse Width="8" Height="8" Fill="{StaticResource AccentPrimaryBrush}"/>
+<StackPanel Orientation="Horizontal" Spacing="6" VerticalAlignment="Center">
+                        <Ellipse Width="8" Height="8" Fill="{StaticResource AuroraCyanBrush}"/>
                         <TextBlock Text="Assistant"
                                    FontSize="11" FontWeight="SemiBold"
-                                   Foreground="{StaticResource AccentGlowBrush}"/>
+                                   CharacterSpacing="40"
+                                   Foreground="{StaticResource AuroraGlowBrush}"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
@@ -65,8 +96,27 @@
                         IsBackButtonVisible="Collapsed"
                         IsSettingsVisible="False"
                         PaneDisplayMode="LeftCompact"
+                        OpenPaneLength="220"
                         SelectionChanged="NavView_SelectionChanged"
                         ItemInvoked="NavView_ItemInvoked">
+
+            <NavigationView.Resources>
+                <!-- Recolor the Fluent selection indicator with the aurora ribbon -->
+                <SolidColorBrush x:Key="NavigationViewSelectionIndicatorForeground" Color="{StaticResource AuroraCyanColor}"/>
+
+                <!-- Selected item: keep readable text + a hint of aurora bg -->
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundSelected" Color="#1F7C3AED"/>
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPointerOver" Color="#287C3AED"/>
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundSelectedPressed" Color="#3D7C3AED"/>
+
+                <SolidColorBrush x:Key="NavigationViewItemForegroundSelected" Color="{StaticResource AuroraGlowColor}"/>
+                <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPointerOver" Color="{StaticResource AuroraGlowColor}"/>
+                <SolidColorBrush x:Key="NavigationViewItemForegroundSelectedPressed" Color="{StaticResource AuroraGlowColor}"/>
+
+                <!-- Hover background subtler than default -->
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundPointerOver" Color="#14FFFFFF"/>
+                <SolidColorBrush x:Key="NavigationViewItemBackgroundPressed" Color="#1FFFFFFF"/>
+            </NavigationView.Resources>
 
             <NavigationView.MenuItems>
                 <NavigationViewItem Content="Home" Tag="Home">
@@ -99,7 +149,8 @@
                 </NavigationViewItem>
             </NavigationView.FooterMenuItems>
 
-            <Frame x:Name="ContentFrame" Background="Transparent"/>
+            <Frame x:Name="ContentFrame"
+                   Background="Transparent"/>
         </NavigationView>
     </Grid>
 </Window>

@@ -22,7 +22,7 @@ public sealed partial class MainWindow : Window
     {
         InitializeComponent();
         Title = "Koli";
-        SystemBackdrop = new MicaBackdrop();
+        SystemBackdrop = new MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt };
 
         ExtendsContentIntoTitleBar = true;
         SetTitleBar(AppTitleBar);

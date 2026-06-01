@@ -22,6 +22,32 @@ public sealed partial class PageShell : UserControl
         DependencyProperty.Register(nameof(Title), typeof(string), typeof(PageShell),
             new PropertyMetadata(string.Empty));
 
+    public string Eyebrow
+    {
+        get => (string)GetValue(EyebrowProperty);
+        set => SetValue(EyebrowProperty, value);
+    }
+
+    public static readonly DependencyProperty EyebrowProperty =
+        DependencyProperty.Register(nameof(Eyebrow), typeof(string), typeof(PageShell),
+            new PropertyMetadata(string.Empty, OnEyebrowChanged));
+
+    public Visibility HasEyebrow
+    {
+        get => (Visibility)GetValue(HasEyebrowProperty);
+        private set => SetValue(HasEyebrowProperty, value);
+    }
+
+    public static readonly DependencyProperty HasEyebrowProperty =
+        DependencyProperty.Register(nameof(HasEyebrow), typeof(Visibility), typeof(PageShell),
+            new PropertyMetadata(Visibility.Collapsed));
+
+    private static void OnEyebrowChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is PageShell shell)
+            shell.HasEyebrow = string.IsNullOrWhiteSpace(e.NewValue as string) ? Visibility.Collapsed : Visibility.Visible;
+    }
+
     public string Subtitle
     {
         get => (string)GetValue(SubtitleProperty);
@@ -57,6 +83,32 @@ public sealed partial class PageShell : UserControl
     public static readonly DependencyProperty HeaderActionsProperty =
         DependencyProperty.Register(nameof(HeaderActions), typeof(object), typeof(PageShell),
             new PropertyMetadata(null));
+
+    public object? Banner
+    {
+        get => GetValue(BannerProperty);
+        set => SetValue(BannerProperty, value);
+    }
+
+    public static readonly DependencyProperty BannerProperty =
+        DependencyProperty.Register(nameof(Banner), typeof(object), typeof(PageShell),
+            new PropertyMetadata(null, OnBannerChanged));
+
+    public Visibility HasBanner
+    {
+        get => (Visibility)GetValue(HasBannerProperty);
+        private set => SetValue(HasBannerProperty, value);
+    }
+
+    public static readonly DependencyProperty HasBannerProperty =
+        DependencyProperty.Register(nameof(HasBanner), typeof(Visibility), typeof(PageShell),
+            new PropertyMetadata(Visibility.Collapsed));
+
+    private static void OnBannerChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
+    {
+        if (d is PageShell shell)
+            shell.HasBanner = e.NewValue is null ? Visibility.Collapsed : Visibility.Visible;
+    }
 
     public object? PageContent
     {

@@ -5,7 +5,18 @@
     xmlns:controls="using:Koli.WinUI.Controls"
     xmlns:cc="using:CommunityToolkit.WinUI.Controls">
 
-    <controls:PageShell Title="Settings" Subtitle="Tune Koli to your workflow">
+    <Page.Resources>
+        <!-- Section row : eyebrow label + aurora underline -->
+        <Style x:Key="SectionEyebrowStyle" TargetType="StackPanel">
+            <Setter Property="Orientation" Value="Horizontal"/>
+            <Setter Property="Spacing" Value="10"/>
+            <Setter Property="Margin" Value="0,0,0,4"/>
+        </Style>
+    </Page.Resources>
+
+    <controls:PageShell Eyebrow="SETTINGS"
+                        Title="Tune Koli to your workflow"
+                        Subtitle="Languages, rewriting, voice assistant, and typing">
         <controls:PageShell.HeaderActions>
             <Button Content="Save"
                     Style="{StaticResource PrimaryButtonStyle}"
@@ -13,11 +24,19 @@
         </controls:PageShell.HeaderActions>
 
         <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
-            <StackPanel Spacing="{StaticResource SpacingXL}" MaxWidth="{StaticResource PageContentReadableWidth}" HorizontalAlignment="Stretch">
+            <StackPanel Spacing="{StaticResource SpacingXXL}"
+                        MaxWidth="{StaticResource PageContentReadableWidth}"
+                        HorizontalAlignment="Stretch">
 
                 <!-- Account & API -->
-                <StackPanel Spacing="{StaticResource SpacingS}">
-                    <TextBlock Text="ACCOUNT" Style="{StaticResource SectionLabelStyle}"/>
+                <StackPanel Spacing="{StaticResource SpacingM}">
+                    <StackPanel Style="{StaticResource SectionEyebrowStyle}">
+                        <TextBlock Text="ACCOUNT" Style="{StaticResource EyebrowLabelStyle}"
+                                   Foreground="{StaticResource AuroraGlowBrush}"/>
+                        <Border Width="20" Height="2" CornerRadius="1"
+                                Background="{StaticResource EyebrowUnderlineBrush}"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
                     <cc:SettingsCard Header="API configuration"
                                      Description="Connect Koli to OpenAI, Azure OpenAI, or an on-premise endpoint."
                                      IsClickEnabled="True"
@@ -26,13 +45,19 @@
                             <FontIcon Glyph="&#xE192;"/>
                         </cc:SettingsCard.HeaderIcon>
                         <FontIcon Glyph="&#xE76C;" FontSize="13"
-                                  Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                                  Foreground="{ThemeResource TextSecondaryBrush}"/>
                     </cc:SettingsCard>
                 </StackPanel>
 
                 <!-- Languages -->
-                <StackPanel Spacing="{StaticResource SpacingS}">
-                    <TextBlock Text="LANGUAGES &amp; TRANSLATION" Style="{StaticResource SectionLabelStyle}"/>
+                <StackPanel Spacing="{StaticResource SpacingM}">
+                    <StackPanel Style="{StaticResource SectionEyebrowStyle}">
+                        <TextBlock Text="LANGUAGES &amp; TRANSLATION" Style="{StaticResource EyebrowLabelStyle}"
+                                   Foreground="{StaticResource AuroraGlowBrush}"/>
+                        <Border Width="20" Height="2" CornerRadius="1"
+                                Background="{StaticResource EyebrowUnderlineBrush}"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
 
                     <InfoBar IsOpen="{Binding ShowOnPremOutputLanguageNotice}"
                              IsClosable="False"
@@ -66,8 +91,14 @@
                 </StackPanel>
 
                 <!-- Rewriting -->
-                <StackPanel Spacing="{StaticResource SpacingS}">
-                    <TextBlock Text="TEXT REWRITING" Style="{StaticResource SectionLabelStyle}"/>
+                <StackPanel Spacing="{StaticResource SpacingM}">
+                    <StackPanel Style="{StaticResource SectionEyebrowStyle}">
+                        <TextBlock Text="TEXT REWRITING" Style="{StaticResource EyebrowLabelStyle}"
+                                   Foreground="{StaticResource AuroraGlowBrush}"/>
+                        <Border Width="20" Height="2" CornerRadius="1"
+                                Background="{StaticResource EyebrowUnderlineBrush}"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
                     <cc:SettingsExpander Header="Rewrite captured text"
                                          Description="Polish what you dictate before it is typed.">
                         <cc:SettingsExpander.HeaderIcon>
@@ -87,8 +118,14 @@
                 </StackPanel>
 
                 <!-- Voice assistant -->
-                <StackPanel Spacing="{StaticResource SpacingS}">
-                    <TextBlock Text="VOICE ASSISTANT (Alt Gr)" Style="{StaticResource SectionLabelStyle}"/>
+                <StackPanel Spacing="{StaticResource SpacingM}">
+                    <StackPanel Style="{StaticResource SectionEyebrowStyle}">
+                        <TextBlock Text="VOICE ASSISTANT (Alt Gr)" Style="{StaticResource EyebrowLabelStyle}"
+                                   Foreground="{StaticResource AuroraGlowBrush}"/>
+                        <Border Width="20" Height="2" CornerRadius="1"
+                                Background="{StaticResource EyebrowUnderlineBrush}"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
                     <cc:SettingsExpander Header="Voice assistant"
                                          Description="Ask a spoken question with Alt Gr; Koli types the answer into the active window.">
                         <cc:SettingsExpander.HeaderIcon>
@@ -113,8 +150,14 @@
                 </StackPanel>
 
                 <!-- Typing -->
-                <StackPanel Spacing="{StaticResource SpacingS}">
-                    <TextBlock Text="TYPING" Style="{StaticResource SectionLabelStyle}"/>
+                <StackPanel Spacing="{StaticResource SpacingM}">
+                    <StackPanel Style="{StaticResource SectionEyebrowStyle}">
+                        <TextBlock Text="TYPING" Style="{StaticResource EyebrowLabelStyle}"
+                                   Foreground="{StaticResource AuroraGlowBrush}"/>
+                        <Border Width="20" Height="2" CornerRadius="1"
+                                Background="{StaticResource EyebrowUnderlineBrush}"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
                     <cc:SettingsCard Header="Auto space"
                                      Description="Insert a space before typed text when needed.">
                         <cc:SettingsCard.HeaderIcon>
@@ -139,9 +182,15 @@
                 </StackPanel>
 
                 <!-- System -->
-                <StackPanel Spacing="{StaticResource SpacingS}"
+                <StackPanel Spacing="{StaticResource SpacingM}"
                             Visibility="{Binding IsLaunchAtStartupAvailable, Converter={StaticResource BoolToVisibilityConverter}}">
-                    <TextBlock Text="SYSTEM" Style="{StaticResource SectionLabelStyle}"/>
+                    <StackPanel Style="{StaticResource SectionEyebrowStyle}">
+                        <TextBlock Text="SYSTEM" Style="{StaticResource EyebrowLabelStyle}"
+                                   Foreground="{StaticResource AuroraGlowBrush}"/>
+                        <Border Width="20" Height="2" CornerRadius="1"
+                                Background="{StaticResource EyebrowUnderlineBrush}"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
                     <cc:SettingsCard Header="Launch at Windows sign-in"
                                      Description="Also configurable in Settings → Apps → Startup apps.">
                         <cc:SettingsCard.HeaderIcon>
@@ -152,20 +201,35 @@
                 </StackPanel>
 
                 <!-- About -->
-                <StackPanel Spacing="{StaticResource SpacingS}">
-                    <TextBlock Text="ABOUT" Style="{StaticResource SectionLabelStyle}"/>
+                <StackPanel Spacing="{StaticResource SpacingM}">
+                    <StackPanel Style="{StaticResource SectionEyebrowStyle}">
+                        <TextBlock Text="ABOUT" Style="{StaticResource EyebrowLabelStyle}"
+                                   Foreground="{StaticResource AuroraGlowBrush}"/>
+                        <Border Width="20" Height="2" CornerRadius="1"
+                                Background="{StaticResource EyebrowUnderlineBrush}"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
                     <Border Style="{StaticResource CardBorderStyle}">
-                        <StackPanel Spacing="6">
-                            <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
-                                <FontIcon Glyph="&#xE946;" FontSize="14"
-                                          Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                                <TextBlock Text="Koli" FontWeight="SemiBold"
-                                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                        <Grid ColumnSpacing="16">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                            </Grid.ColumnDefinitions>
+                            <Border Width="42" Height="42"
+                                    CornerRadius="12"
+                                    Background="{StaticResource AuroraDiagonalBrush}">
+                                <FontIcon Glyph="&#xE946;" FontSize="20" Foreground="White"/>
+                            </Border>
+                            <StackPanel Grid.Column="1" Spacing="6" VerticalAlignment="Center">
+                                <TextBlock Text="Koli"
+                                           FontWeight="SemiBold"
+                                           FontSize="15"
+                                           Foreground="{ThemeResource TextPrimaryBrush}"/>
+                                <TextBlock Text="{Binding AboutText}"
+                                           TextWrapping="WrapWholeWords"
+                                           Foreground="{ThemeResource TextSecondaryBrush}"/>
                             </StackPanel>
-                            <TextBlock Text="{Binding AboutText}"
-                                       TextWrapping="WrapWholeWords"
-                                       Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
-                        </StackPanel>
+                        </Grid>
                     </Border>
                 </StackPanel>
 

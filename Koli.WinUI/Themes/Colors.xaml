@@ -4,49 +4,76 @@
 
     <ResourceDictionary.ThemeDictionaries>
 
-        <!-- Dark theme -->
+        <!-- Cosmos (Dark) — default -->
         <ResourceDictionary x:Key="Default">
-            <Color x:Key="AppBackgroundColor">#0E0E12</Color>
-            <Color x:Key="SurfaceColor">#181820</Color>
-            <Color x:Key="SurfaceHoverColor">#24242E</Color>
-            <Color x:Key="SurfaceElevatedColor">#20202A</Color>
-            <Color x:Key="CardBackgroundColor">#1C1C26</Color>
-            <Color x:Key="BorderColor">#2A2A38</Color>
-            <Color x:Key="TextPrimaryColor">#F8FAFC</Color>
-            <Color x:Key="TextSecondaryColor">#A3A3B2</Color>
-            <Color x:Key="TextTertiaryColor">#717180</Color>
+            <!-- Surface layers, deepest to brightest -->
+            <Color x:Key="VoidColor">#06060B</Color>
+            <Color x:Key="AppBackgroundColor">#0C0C16</Color>
+            <Color x:Key="SurfaceColor">#13131F</Color>
+            <Color x:Key="SurfaceHoverColor">#1B1B2A</Color>
+            <Color x:Key="SurfaceElevatedColor">#1F1F2E</Color>
+            <Color x:Key="CardBackgroundColor">#13131F</Color>
 
+            <Color x:Key="BorderColor">#FFFFFF</Color>
+            <Color x:Key="TextPrimaryColor">#F4F4FC</Color>
+            <Color x:Key="TextSecondaryColor">#B3B7C5</Color>
+            <Color x:Key="TextTertiaryColor">#6E7280</Color>
+
+            <SolidColorBrush x:Key="VoidBrush" Color="{StaticResource VoidColor}" />
             <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource AppBackgroundColor}" />
-            <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
-            <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}" />
-            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#26CACAD8" />
-            <SolidColorBrush x:Key="CardSubtleBackgroundBrush" Color="#14FFFFFF" />
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#B313131F" />
+            <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#B31B1B2A" />
+            <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="#CC1F1F2E" />
+
+            <!-- Card surfaces — translucent to let Mica/Aurora bleed through -->
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#992A2A3C" />
+            <SolidColorBrush x:Key="CardSubtleBackgroundBrush" Color="#52242436" />
+            <SolidColorBrush x:Key="CardElevatedBackgroundBrush" Color="#B33A3A52" />
+
+            <!-- Strokes — three tiers + an inner glass highlight -->
+            <SolidColorBrush x:Key="StrokeHairlineBrush" Color="#1AFFFFFF" />
+            <SolidColorBrush x:Key="StrokeSoftBrush" Color="#26FFFFFF" />
+            <SolidColorBrush x:Key="StrokeDefinedBrush" Color="#33FFFFFF" />
+            <SolidColorBrush x:Key="InnerGlowBrush" Color="#1FFFFFFF" />
             <SolidColorBrush x:Key="BorderBrush" Color="#26FFFFFF" />
             <SolidColorBrush x:Key="DividerBrush" Color="#1AFFFFFF" />
+
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
             <SolidColorBrush x:Key="TextTertiaryBrush" Color="{StaticResource TextTertiaryColor}" />
         </ResourceDictionary>
 
-        <!-- Light theme -->
+        <!-- Daylight (Light) -->
         <ResourceDictionary x:Key="Light">
-            <Color x:Key="AppBackgroundColor">#F3F3F7</Color>
+            <Color x:Key="VoidColor">#E8E8F0</Color>
+            <Color x:Key="AppBackgroundColor">#F7F7FB</Color>
             <Color x:Key="SurfaceColor">#FFFFFF</Color>
-            <Color x:Key="SurfaceHoverColor">#ECECF0</Color>
-            <Color x:Key="SurfaceElevatedColor">#FAFAFC</Color>
+            <Color x:Key="SurfaceHoverColor">#EDEDF3</Color>
+            <Color x:Key="SurfaceElevatedColor">#FAFAFE</Color>
             <Color x:Key="CardBackgroundColor">#FFFFFF</Color>
-            <Color x:Key="BorderColor">#E5E5EC</Color>
-            <Color x:Key="TextPrimaryColor">#1A1A20</Color>
-            <Color x:Key="TextSecondaryColor">#5C5C68</Color>
-            <Color x:Key="TextTertiaryColor">#8A8A95</Color>
 
+            <Color x:Key="BorderColor">#0F1A2E</Color>
+            <Color x:Key="TextPrimaryColor">#101122</Color>
+            <Color x:Key="TextSecondaryColor">#4D5266</Color>
+            <Color x:Key="TextTertiaryColor">#7B8094</Color>
+
+            <SolidColorBrush x:Key="VoidBrush" Color="{StaticResource VoidColor}" />
             <SolidColorBrush x:Key="AppBackgroundBrush" Color="{StaticResource AppBackgroundColor}" />
-            <SolidColorBrush x:Key="SurfaceBrush" Color="{StaticResource SurfaceColor}" />
-            <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{StaticResource SurfaceHoverColor}" />
-            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#B3FFFFFF" />
+            <SolidColorBrush x:Key="SurfaceBrush" Color="#CCFFFFFF" />
+            <SolidColorBrush x:Key="SurfaceHoverBrush" Color="#CCEDEDF3" />
+            <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="#E6FAFAFE" />
+
+            <SolidColorBrush x:Key="CardBackgroundBrush" Color="#CCFFFFFF" />
             <SolidColorBrush x:Key="CardSubtleBackgroundBrush" Color="#80FFFFFF" />
-            <SolidColorBrush x:Key="BorderBrush" Color="#1A000000" />
-            <SolidColorBrush x:Key="DividerBrush" Color="#14000000" />
+            <SolidColorBrush x:Key="CardElevatedBackgroundBrush" Color="#F2FFFFFF" />
+
+            <SolidColorBrush x:Key="StrokeHairlineBrush" Color="#140F1A2E" />
+            <SolidColorBrush x:Key="StrokeSoftBrush" Color="#1F0F1A2E" />
+            <SolidColorBrush x:Key="StrokeDefinedBrush" Color="#330F1A2E" />
+            <SolidColorBrush x:Key="InnerGlowBrush" Color="#80FFFFFF" />
+            <SolidColorBrush x:Key="BorderBrush" Color="#1F0F1A2E" />
+            <SolidColorBrush x:Key="DividerBrush" Color="#140F1A2E" />
+
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="{StaticResource TextPrimaryColor}" />
             <SolidColorBrush x:Key="TextSecondaryBrush" Color="{StaticResource TextSecondaryColor}" />
             <SolidColorBrush x:Key="TextTertiaryBrush" Color="{StaticResource TextTertiaryColor}" />
@@ -54,11 +81,18 @@
 
         <!-- High contrast -->
         <ResourceDictionary x:Key="HighContrast">
+            <SolidColorBrush x:Key="VoidBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="AppBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="SurfaceBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="SurfaceHoverBrush" Color="{ThemeResource SystemColorHighlightColor}" />
+            <SolidColorBrush x:Key="SurfaceElevatedBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="CardBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
             <SolidColorBrush x:Key="CardSubtleBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="CardElevatedBackgroundBrush" Color="{ThemeResource SystemColorWindowColor}" />
+            <SolidColorBrush x:Key="StrokeHairlineBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="StrokeSoftBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="StrokeDefinedBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
+            <SolidColorBrush x:Key="InnerGlowBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="BorderBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="DividerBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
             <SolidColorBrush x:Key="TextPrimaryBrush" Color="{ThemeResource SystemColorWindowTextColor}" />
@@ -68,25 +102,50 @@
 
     </ResourceDictionary.ThemeDictionaries>
 
-    <!-- Theme-agnostic Koli accent (purple identity) -->
+    <!-- Aurora — theme-agnostic signature palette (violet → indigo → cyan → rose) -->
+    <Color x:Key="AuroraVioletColor">#7C3AED</Color>
+    <Color x:Key="AuroraIndigoColor">#5B5EE3</Color>
+    <Color x:Key="AuroraCyanColor">#22D3EE</Color>
+    <Color x:Key="AuroraRoseColor">#F472B6</Color>
+    <Color x:Key="AuroraDeepColor">#4F1FB8</Color>
+    <Color x:Key="AuroraGlowColor">#A78BFA</Color>
+
+    <!-- Back-compat accent colors (still consumed by some bindings) -->
     <Color x:Key="AccentPrimaryColor">#7C3AED</Color>
     <Color x:Key="AccentHoverColor">#8B5CF6</Color>
     <Color x:Key="AccentPressedColor">#6D28D9</Color>
     <Color x:Key="AccentGlowColor">#A78BFA</Color>
-    <Color x:Key="RecordingPrimaryColor">#EF4444</Color>
-    <Color x:Key="SuccessColor">#34D399</Color>
+
+    <!-- Status -->
+    <Color x:Key="RecordingPrimaryColor">#FF4D6A</Color>
+    <Color x:Key="RecordingGlowColor">#FF7A93</Color>
+    <Color x:Key="SuccessColor">#4ADE80</Color>
     <Color x:Key="WarningColor">#FBBF24</Color>
     <Color x:Key="ErrorColor">#F87171</Color>
+
+    <!-- Solid brushes built off the aurora palette -->
+    <SolidColorBrush x:Key="AuroraVioletBrush" Color="{StaticResource AuroraVioletColor}" />
+    <SolidColorBrush x:Key="AuroraIndigoBrush" Color="{StaticResource AuroraIndigoColor}" />
+    <SolidColorBrush x:Key="AuroraCyanBrush" Color="{StaticResource AuroraCyanColor}" />
+    <SolidColorBrush x:Key="AuroraRoseBrush" Color="{StaticResource AuroraRoseColor}" />
+    <SolidColorBrush x:Key="AuroraGlowBrush" Color="{StaticResource AuroraGlowColor}" />
 
     <SolidColorBrush x:Key="AccentPrimaryBrush" Color="{StaticResource AccentPrimaryColor}" />
     <SolidColorBrush x:Key="AccentFillBrush" Color="{StaticResource AccentPrimaryColor}" />
     <SolidColorBrush x:Key="AccentHoverBrush" Color="{StaticResource AccentHoverColor}" />
-    <SolidColorBrush x:Key="AccentGlowBrush" Color="{StaticResource AccentGlowColor}" />
-    <SolidColorBrush x:Key="AccentSoftBrush" Color="#1F7C3AED" />
+    <SolidColorBrush x:Key="AccentSoftBrush" Color="#287C3AED" />
+    <SolidColorBrush x:Key="AccentMutedBrush" Color="#147C3AED" />
+
     <SolidColorBrush x:Key="RecordingPrimaryBrush" Color="{StaticResource RecordingPrimaryColor}" />
-    <SolidColorBrush x:Key="RecordingSoftBrush" Color="#1FEF4444" />
+    <SolidColorBrush x:Key="RecordingGlowBrush" Color="{StaticResource RecordingGlowColor}" />
+    <SolidColorBrush x:Key="RecordingSoftBrush" Color="#33FF4D6A" />
+    <SolidColorBrush x:Key="RecordingMutedBrush" Color="#1AFF4D6A" />
+
     <SolidColorBrush x:Key="SuccessBrush" Color="{StaticResource SuccessColor}" />
+    <SolidColorBrush x:Key="SuccessSoftBrush" Color="#244ADE80" />
     <SolidColorBrush x:Key="WarningBrush" Color="{StaticResource WarningColor}" />
+    <SolidColorBrush x:Key="WarningSoftBrush" Color="#24FBBF24" />
     <SolidColorBrush x:Key="ErrorBrush" Color="{StaticResource ErrorColor}" />
+    <SolidColorBrush x:Key="ErrorSoftBrush" Color="#24F87171" />
 
 </ResourceDictionary>

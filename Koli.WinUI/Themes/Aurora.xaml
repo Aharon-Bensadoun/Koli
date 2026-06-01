@@ -1,0 +1,95 @@
+<ResourceDictionary
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+    <!--
+        Aurora gradients — the signature pinceaux of Koli.
+        Use sparingly: a single aurora element per region is enough to lift the whole view.
+    -->
+
+    <!-- Horizontal ribbon: violet → indigo → cyan → rose -->
+    <LinearGradientBrush x:Key="AuroraRibbonBrush" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Offset="0.0" Color="{StaticResource AuroraVioletColor}" />
+        <GradientStop Offset="0.42" Color="{StaticResource AuroraIndigoColor}" />
+        <GradientStop Offset="0.72" Color="{StaticResource AuroraCyanColor}" />
+        <GradientStop Offset="1.0" Color="{StaticResource AuroraRoseColor}" />
+    </LinearGradientBrush>
+
+    <!-- Vertical ribbon (selection indicator) -->
+    <LinearGradientBrush x:Key="AuroraVerticalBrush" StartPoint="0.5,0" EndPoint="0.5,1">
+        <GradientStop Offset="0.0" Color="{StaticResource AuroraVioletColor}" />
+        <GradientStop Offset="0.5" Color="{StaticResource AuroraIndigoColor}" />
+        <GradientStop Offset="1.0" Color="{StaticResource AuroraCyanColor}" />
+    </LinearGradientBrush>
+
+    <!-- Diagonal aurora — used for fills (buttons, halos, record button) -->
+    <LinearGradientBrush x:Key="AuroraDiagonalBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0.0" Color="{StaticResource AuroraDeepColor}" />
+        <GradientStop Offset="0.45" Color="{StaticResource AuroraVioletColor}" />
+        <GradientStop Offset="0.85" Color="{StaticResource AuroraCyanColor}" />
+        <GradientStop Offset="1.0" Color="{StaticResource AuroraRoseColor}" />
+    </LinearGradientBrush>
+
+    <!-- Soft aurora — translucent backgrounds for chips, glow inner highlights -->
+    <LinearGradientBrush x:Key="AuroraSoftBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0.0" Color="#2E7C3AED" />
+        <GradientStop Offset="0.5" Color="#2E22D3EE" />
+        <GradientStop Offset="1.0" Color="#2EF472B6" />
+    </LinearGradientBrush>
+
+    <!-- Muted aurora — even subtler, for hover backgrounds & inner card glow -->
+    <LinearGradientBrush x:Key="AuroraMutedBrush" StartPoint="0,0" EndPoint="1,1">
+        <GradientStop Offset="0.0" Color="#147C3AED" />
+        <GradientStop Offset="1.0" Color="#1422D3EE" />
+    </LinearGradientBrush>
+
+    <!-- Radial halo — record button "breathing" glow -->
+    <RadialGradientBrush x:Key="AuroraHaloBrush"
+                         Center="0.5,0.5"
+                         RadiusX="0.5" RadiusY="0.5">
+        <GradientStop Offset="0.0" Color="#CC7C3AED" />
+        <GradientStop Offset="0.45" Color="#5C7C3AED" />
+        <GradientStop Offset="1.0" Color="#007C3AED" />
+    </RadialGradientBrush>
+
+    <!-- Radial halo — recording (warm) -->
+    <RadialGradientBrush x:Key="RecordingHaloBrush"
+                         Center="0.5,0.5"
+                         RadiusX="0.5" RadiusY="0.5">
+        <GradientStop Offset="0.0" Color="#CCFF4D6A" />
+        <GradientStop Offset="0.45" Color="#5CFF4D6A" />
+        <GradientStop Offset="1.0" Color="#00FF4D6A" />
+    </RadialGradientBrush>
+
+    <!-- Radial halo — assistant (cool) -->
+    <RadialGradientBrush x:Key="AssistantHaloBrush"
+                         Center="0.5,0.5"
+                         RadiusX="0.5" RadiusY="0.5">
+        <GradientStop Offset="0.0" Color="#CC22D3EE" />
+        <GradientStop Offset="0.45" Color="#5C7C3AED" />
+        <GradientStop Offset="1.0" Color="#007C3AED" />
+    </RadialGradientBrush>
+
+    <!-- Page bleed — placed in the bottom-right corner of hero pages -->
+    <RadialGradientBrush x:Key="AuroraPageBleedBrush"
+                         Center="0.85,1.05"
+                         RadiusX="0.6" RadiusY="0.6">
+        <GradientStop Offset="0.0" Color="#3D7C3AED" />
+        <GradientStop Offset="0.5" Color="#2622D3EE" />
+        <GradientStop Offset="1.0" Color="#00F472B6" />
+    </RadialGradientBrush>
+
+    <!-- Inner glass highlight — applied as a thin top stroke on cards -->
+    <LinearGradientBrush x:Key="GlassInnerGlowBrush" StartPoint="0.5,0" EndPoint="0.5,1">
+        <GradientStop Offset="0.0" Color="#26FFFFFF" />
+        <GradientStop Offset="0.5" Color="#0AFFFFFF" />
+        <GradientStop Offset="1.0" Color="#00FFFFFF" />
+    </LinearGradientBrush>
+
+    <!-- Eyebrow underline — thin gradient bar (24px wide typically) -->
+    <LinearGradientBrush x:Key="EyebrowUnderlineBrush" StartPoint="0,0.5" EndPoint="1,0.5">
+        <GradientStop Offset="0.0" Color="{StaticResource AuroraVioletColor}" />
+        <GradientStop Offset="1.0" Color="{StaticResource AuroraCyanColor}" />
+    </LinearGradientBrush>
+
+</ResourceDictionary>

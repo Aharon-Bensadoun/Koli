@@ -6,24 +6,42 @@
     <Grid Padding="{StaticResource PagePadding}" RowSpacing="{StaticResource SpacingL}">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
             <RowDefinition Height="*"/>
         </Grid.RowDefinitions>
 
+        <!-- Header row : eyebrow + title block + actions -->
         <Grid ColumnSpacing="{StaticResource SpacingL}">
             <Grid.ColumnDefinitions>
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
 
-            <StackPanel Spacing="2" VerticalAlignment="Center">
+            <StackPanel Spacing="6" VerticalAlignment="Center">
+
+                <!-- Optional eyebrow above the title -->
+                <StackPanel x:Name="EyebrowRow"
+                            Orientation="Horizontal"
+                            Spacing="10"
+                            Visibility="{x:Bind HasEyebrow, Mode=OneWay}">
+                    <TextBlock x:Name="EyebrowTextBlock"
+                               Text="{x:Bind Eyebrow, Mode=OneWay}"
+                               Style="{StaticResource EyebrowLabelStyle}"
+                               Foreground="{StaticResource AuroraGlowBrush}"
+                               VerticalAlignment="Center"/>
+                    <Border Width="28" Height="2"
+                            CornerRadius="1"
+                            Background="{StaticResource EyebrowUnderlineBrush}"
+                            VerticalAlignment="Center"/>
+                </StackPanel>
+
                 <TextBlock x:Name="TitleTextBlock"
                            Text="{x:Bind Title, Mode=OneWay}"
-                           Style="{StaticResource TitleTextBlockStyle}"
-                           Foreground="{ThemeResource TextFillColorPrimaryBrush}"/>
+                           Style="{StaticResource PageTitleStyle}"/>
+
                 <TextBlock x:Name="SubtitleTextBlock"
                            Text="{x:Bind Subtitle, Mode=OneWay}"
-                           Style="{StaticResource BodyTextBlockStyle}"
-                           Foreground="{ThemeResource TextFillColorSecondaryBrush}"
+                           Style="{StaticResource PageSubtitleStyle}"
                            Visibility="{x:Bind HasSubtitle, Mode=OneWay}"
                            TextWrapping="WrapWholeWords"/>
             </StackPanel>
@@ -34,7 +52,14 @@
                               HorizontalAlignment="Right"/>
         </Grid>
 
+        <!-- Optional banner slot (InfoBars, callouts) directly under the title block -->
         <ContentPresenter Grid.Row="1"
+                          Content="{x:Bind Banner, Mode=OneWay}"
+                          HorizontalContentAlignment="Stretch"
+                          Visibility="{x:Bind HasBanner, Mode=OneWay}"/>
+
+        <!-- Page body -->
+        <ContentPresenter Grid.Row="2"
                           Content="{x:Bind PageContent, Mode=OneWay}"
                           HorizontalContentAlignment="Stretch"
                           VerticalContentAlignment="Stretch"/>

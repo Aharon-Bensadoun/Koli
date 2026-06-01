@@ -1,6 +1,6 @@
+using System.ComponentModel;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Media;
 using Koli.WinUI.Controls;
 using Koli.WinUI.ViewModels;
 
@@ -14,6 +14,7 @@ public sealed partial class HomePage : Page
     {
         InitializeComponent();
         Loaded += OnLoaded;
+        Unloaded += OnUnloaded;
         // HomeViewModel is a singleton; disposed on application exit in MainWindow.Cleanup.
     }
 
@@ -21,5 +22,42 @@ public sealed partial class HomePage : Page
     {
         _vm = App.Services.Get<HomeViewModel>();
         DataContext = _vm;
+        _vm.PropertyChanged += OnViewModelChanged;
+        SyncRecordButton();
+    }
+
+    private void OnUnloaded(object sender, RoutedEventArgs e)
+    {
+        if (_vm is null) return;
+        _vm.PropertyChanged -= OnViewModelChanged;
+    }
+
+    private void OnViewModelChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        if (e.PropertyName is nameof(HomeViewModel.IsDictationRecording)
+            or nameof(HomeViewModel.IsAssistantRecording))
+        {
+            DispatcherQueue.TryEnqueue(SyncRecordButton);
+        }
+    }
+
+    private void SyncRecordButton()
+    {
+        if (_vm is null) return;
+        if (_vm.IsAssistantRecording)
+        {
+            RecordButton.Mode = AuroraRecordMode.Assistant;
+            RecordButton.IsActive = true;
+        }
+        else if (_vm.IsDictationRecording)
+        {
+            RecordButton.Mode = AuroraRecordMode.Dictation;
+            RecordButton.IsActive = true;
+        }
+        else
+        {
+            RecordButton.Mode = AuroraRecordMode.Dictation;
+            RecordButton.IsActive = false;
+        }
     }
 }
