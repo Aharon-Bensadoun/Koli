@@ -155,3 +155,5 @@ $RECYCLE.BIN/
 ## MSIX signing certificates
 *.pfx
 
+# claude
+.claude/
