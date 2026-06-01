@@ -176,11 +176,27 @@ public static class OpenAiModelProfiles
         return builder.Uri.ToString();
     }
 
-    private static string ToWebSocketUrl(string httpUrl)
+    /// <summary>
+    /// Converts an HTTP(S) or WS(S) URL to a secure WebSocket URL (<c>wss://</c>).
+    /// Insecure schemes (<c>http</c>, <c>ws</c>) are upgraded; explicit <c>wss://</c> is preserved.
+    /// </summary>
+    internal static string ToWebSocketUrl(string url)
     {
-        var uri = new Uri(httpUrl.TrimEnd('/'));
-        var scheme = uri.Scheme.Equals("https", StringComparison.OrdinalIgnoreCase) ? "wss" : "ws";
-        var builder = new UriBuilder(uri) { Scheme = scheme, Port = uri.IsDefaultPort ? -1 : uri.Port };
+        var uri = new Uri(url.TrimEnd('/'));
+        var port = uri.Port;
+        if (uri.Scheme.Equals("http", StringComparison.OrdinalIgnoreCase)
+            || uri.Scheme.Equals("ws", StringComparison.OrdinalIgnoreCase))
+        {
+            // Plain HTTP/WS default port → WSS default (443).
+            if (port == 80)
+                port = -1;
+        }
+        else if (port == 443)
+        {
+            port = -1;
+        }
+
+        var builder = new UriBuilder(uri) { Scheme = "wss", Port = port };
         return builder.Uri.ToString();
     }
 

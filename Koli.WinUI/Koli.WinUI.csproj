@@ -19,9 +19,6 @@
     <PublishSingleFile>false</PublishSingleFile>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
-    <Version>1.0.1.2</Version>
-    <AssemblyVersion>1.0.1.2</AssemblyVersion>
-    <FileVersion>1.0.1.2</FileVersion>
     <Authors>Aharon Bensadoun</Authors>
     <Company>Aharon Bensadoun</Company>
     <Product>Koli</Product>
@@ -34,7 +31,7 @@
   <!-- MSIX packaging (activated with: -p:WindowsPackageType=MSIX) -->
   <PropertyGroup Condition="'$(WindowsPackageType)' != 'None'">
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
-    <PackageCertificateThumbprint>01295C0B58EE87341BE841C0ABE0EABB41DDA562</PackageCertificateThumbprint>
+    <PackageCertificateThumbprint>7FCFC31230B39C9F013C0F82FEA725CCC6D3509E</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
     <AppxBundle>Never</AppxBundle>
