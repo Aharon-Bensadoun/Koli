@@ -282,6 +282,24 @@ public class OpenAiModelProfilesTests
     }
 
     [Theory]
+    [InlineData("wss://custom.example.com/api/ai/realtime/transcribe", "wss://custom.example.com/api/ai/realtime/transcribe")]
+    [InlineData("ws://custom.example.com/api/ai/realtime/transcribe", "wss://custom.example.com/api/ai/realtime/transcribe")]
+    public void BuildOnPremRealtimeWebSocketUrl_AlwaysUsesSecureWebSocket(string realtimeEndpoint, string expected)
+    {
+        var settings = new AzureOpenAISettings { RealtimeEndpoint = realtimeEndpoint };
+        Assert.Equal(expected, OpenAiModelProfiles.BuildOnPremRealtimeWebSocketUrl(settings));
+    }
+
+    [Fact]
+    public void BuildOnPremRealtimeWebSocketUrl_UpgradesHttpEndpointToWss()
+    {
+        var settings = new AzureOpenAISettings { Endpoint = "http://corp.example.com/api/ai/queryAudio" };
+        Assert.Equal(
+            "wss://corp.example.com/api/ai/realtime/transcribe",
+            OpenAiModelProfiles.BuildOnPremRealtimeWebSocketUrl(settings));
+    }
+
+    [Theory]
     [InlineData("https://corp.example.com/api/AI/queryAudio", true, false, false)]
     [InlineData("https://corp.example.com/api/AI/queryAudio", true, true, true)]
     [InlineData("https://corp.example.com/api/AI/queryAudio", false, true, false)]

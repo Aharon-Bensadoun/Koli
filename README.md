@@ -12,7 +12,7 @@ featuring multi-speaker diarization.
 
 [![.NET 8](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](https://dotnet.microsoft.com/)
 [![Platform: Windows](https://img.shields.io/badge/platform-Windows%2010%20%7C%2011-0078D6?logo=windows&logoColor=white)](https://www.microsoft.com/windows)
-[![Version](https://img.shields.io/badge/version-1.0.1.2-7C3AED)](https://github.com/Aharon-Bensadoun/Koli/releases)
+[![Version](https://img.shields.io/badge/version-1.0.1.3-7C3AED)](https://github.com/Aharon-Bensadoun/Koli/releases)
 [![License: MIT](https://img.shields.io/badge/license-MIT-22C55E)](LICENSE)
 
 [Features](#-features) •
@@ -98,8 +98,8 @@ Download the latest `.msix` package from [Releases](https://github.com/Aharon-Be
      ```
 
 2. **Install the app**:
-   - Double-click `Koli.WinUI_1.0.1.2_x64.msix` and click **Install**.
-   - Or run the included script:
+   - Double-click `Koli.WinUI_1.0.1.2_x64.msix` and click **Install** (requires a **new** version if the app is already installed).
+   - Or run the included script (supports reinstalling the same version via `Install.ps1` after a `Publish-Koli.ps1` build):
      ```powershell
      .\Install.ps1
      ```
@@ -586,7 +586,31 @@ Export-PfxCertificate -Cert $cert -FilePath ".\Koli.WinUI.pfx" -Password $pwd
 
 #### Build
 
-Build a signed MSIX installer for sideloading:
+**Recommended** -- bump the version and publish the MSIX in one step (increments the revision by default, e.g. `1.0.1.3` -> `1.0.1.4`):
+
+```powershell
+.\scripts\Publish-Koli.ps1
+```
+
+Other examples:
+
+```powershell
+# Set an explicit version, then publish
+.\scripts\Publish-Koli.ps1 -Version 1.0.2.0
+
+# Bump the build number (3rd segment) instead of the revision
+.\scripts\Publish-Koli.ps1 -Bump Build
+
+# Publish without changing the version
+.\scripts\Publish-Koli.ps1 -NoBump
+
+# Portable unpackaged folder instead of MSIX
+.\scripts\Publish-Koli.ps1 -Unpackaged
+```
+
+The canonical version is in `Directory.Build.props` at the repo root (also synced to `Package.appxmanifest`).
+
+Manual publish (no version bump):
 
 ```bash
 dotnet publish Koli.WinUI/Koli.WinUI.csproj -c Release -r win-x64 -p:WindowsPackageType=MSIX

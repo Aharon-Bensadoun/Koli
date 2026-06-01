@@ -6,7 +6,6 @@
     <Nullable>enable</Nullable>
     <RootNamespace>Koli</RootNamespace>
     <AssemblyName>Koli.Core</AssemblyName>
-    <Version>1.0.1.2</Version>
     <Authors>Aharon Bensadoun</Authors>
     <Company>Aharon Bensadoun</Company>
     <Product>Koli</Product>
