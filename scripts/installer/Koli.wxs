@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Wix xmlns="http://wixtoolset.org/schemas/v4/wxs"
+     xmlns:ui="http://wixtoolset.org/schemas/v4/wxs/ui"
+     xmlns:util="http://wixtoolset.org/schemas/v4/wxs/util">
+
+  <Package Name="Koli"
+           Manufacturer="Aharon Bensadoun"
+           Version="$(var.KoliVersion)"
+           UpgradeCode="A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
+           Scope="perMachine"
+           Language="1033">
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Koli is already installed."
+                  AllowSameVersionUpgrades="yes" />
+    <MediaTemplate EmbedCab="yes" />
+
+    <StandardDirectory Id="ProgramFiles6432Folder">
+      <Directory Id="INSTALLFOLDER" Name="Koli" />
+    </StandardDirectory>
+
+    <StandardDirectory Id="ProgramMenuFolder">
+      <Directory Id="ApplicationProgramsFolder" Name="Koli" />
+    </StandardDirectory>
+
+    <Feature Id="MainFeature" Title="Koli" Level="1">
+      <ComponentGroupRef Id="KoliAppFiles" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="InstallFolderCleanup" />
+    </Feature>
+
+    <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+
+    <Component Id="StartMenuShortcut" Directory="ApplicationProgramsFolder" Guid="B8E4F2A1-3C5D-4E6F-9A0B-1C2D3E4F5A6B">
+      <Shortcut Id="KoliStartMenuShortcut"
+                Name="Koli"
+                Description="Real-time speech transcription for Windows"
+                Target="[INSTALLFOLDER]Koli.exe"
+                WorkingDirectory="INSTALLFOLDER"
+                Icon="KoliIcon.exe" />
+      <RemoveFolder Id="RemoveApplicationProgramsFolder" Directory="ApplicationProgramsFolder" On="uninstall" />
+      <RegistryValue Root="HKLM"
+                     Key="Software\Aharon Bensadoun\Koli"
+                     Name="Installed"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+
+    <Icon Id="KoliIcon.exe" SourceFile="!(bindpath.PublishPath)\Koli.exe" />
+    <Property Id="ARPPRODUCTICON" Value="KoliIcon.exe" />
+
+    <Component Id="InstallFolderCleanup" Directory="INSTALLFOLDER" Guid="C1D2E3F4-A5B6-7890-CDEF-123456789ABC">
+      <CreateFolder />
+      <util:RemoveFolderEx On="uninstall" Property="INSTALLFOLDER" />
+      <RegistryValue Root="HKLM"
+                     Key="Software\Aharon Bensadoun\Koli"
+                     Name="InstallFolder"
+                     Type="integer"
+                     Value="1"
+                     KeyPath="yes" />
+    </Component>
+  </Package>
+
+  <Fragment>
+    <ComponentGroup Id="KoliAppFiles" Directory="INSTALLFOLDER">
+      <Files Include="!(bindpath.PublishPath)\**" />
+    </ComponentGroup>
+  </Fragment>
+</Wix>

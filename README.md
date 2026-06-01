@@ -106,7 +106,27 @@ Download the latest `.msix` package from [Releases](https://github.com/Aharon-Be
 
 3. Launch **Koli** from the Start menu. On first launch, a dialog prompts you to enter your API key.
 
-### Option B — Install from source
+### Option B — Install from MSI package
+
+Download the latest `.msi` from [Releases](https://github.com/Aharon-Bensadoun/Koli/releases) (or build with `.\scripts\Publish-Koli.ps1 -Target Msi`).
+
+1. Double-click `Koli_1.0.4.3_x64.msi` and follow the setup wizard.
+2. Accept the **license agreement**, choose an **installation folder** (default: `C:\Program Files\Koli`), then click **Install** (administrator approval may be required).
+3. Launch **Koli** from the Start menu. Uninstall from **Settings → Apps** or **Programs and Features**.
+
+> **Note:** Launch at startup (Settings → General) is only available in the MSIX-installed version.
+
+### Option C — Portable app (zip)
+
+Download the latest `Koli_*_x64_portable.zip` from [Releases](https://github.com/Aharon-Bensadoun/Koli/releases) (or build with `.\scripts\Publish-Koli.ps1 -Target Portable`).
+
+1. Extract the zip to any folder (for example `D:\Apps\Koli`).
+2. Run `Koli.exe` directly — no installation required.
+3. Settings are stored in `Config\` next to the executable.
+
+> **Note:** Launch at startup is not available in the portable build.
+
+### Option D — Install from source
 
 1. **Clone the repository**
 
@@ -551,6 +571,16 @@ In development the application looks for `Config/appsettings.json` relative to t
 
 ## 🔨 Production Build
 
+`Publish-Koli.ps1` supports three distribution targets:
+
+| Target | Command | Output |
+|---|---|---|
+| **MSIX** (default) | `.\scripts\Publish-Koli.ps1` | Signed `.msix` in `Koli.WinUI/bin/.../AppPackages/` |
+| **Portable** | `.\scripts\Publish-Koli.ps1 -Target Portable` | `Koli.WinUI/dist/Koli_{version}_x64_portable.zip` |
+| **MSI** | `.\scripts\Publish-Koli.ps1 -Target Msi` | `Koli.WinUI/dist/Koli_{version}_x64.msi` |
+
+The legacy `-Unpackaged` switch is an alias for `-Target Portable`.
+
 ### MSIX package (recommended for distribution)
 
 #### Signing certificate
@@ -604,7 +634,13 @@ Other examples:
 # Publish without changing the version
 .\scripts\Publish-Koli.ps1 -NoBump
 
-# Portable unpackaged folder instead of MSIX
+# Portable zip instead of MSIX
+.\scripts\Publish-Koli.ps1 -Target Portable
+
+# MSI installer (requires WiX Toolset CLI 5.x — see below)
+.\scripts\Publish-Koli.ps1 -Target Msi
+
+# Legacy alias for portable
 .\scripts\Publish-Koli.ps1 -Unpackaged
 ```
 
@@ -631,15 +667,60 @@ Distribute the entire `…_Test/` folder. Users install the certificate once, th
 
 > **Note:** WinUI 3 apps require native Windows App SDK DLLs alongside the executable, so `PublishSingleFile=true` is **not supported**. MSIX is the recommended single-file distribution format.
 
-### Unpackaged folder (portable)
+### MSI installer
 
-Build a self-contained unpackaged folder for Windows x64:
+Builds a Windows Installer package with a **visual setup wizard** (welcome, license agreement, folder selection, confirmation). Default install location: `C:\Program Files\Koli`.
+
+**Prerequisite** — install [WiX Toolset](https://wixtoolset.org/) CLI **5.x** (once per machine):
+
+```powershell
+dotnet tool install --global wix --version 5.0.2
+wix extension add WixToolset.Util.wixext/5.0.2
+wix extension add WixToolset.UI.wixext/5.0.2
+```
+
+Then publish:
+
+```powershell
+.\scripts\Publish-Koli.ps1 -Target Msi
+```
+
+Output: `Koli.WinUI/dist/Koli_{version}_x64.msi` (~88 MB).
+
+Manual alternative (no version bump):
+
+```powershell
+dotnet publish Koli.WinUI/Koli.WinUI.csproj -c Release -r win-x64
+wix build scripts/installer/Koli.wxs -ext WixToolset.UI.wixext -ext WixToolset.Util.wixext `
+  -d KoliVersion=1.0.4.3 `
+  -bindpath PublishPath="Koli.WinUI/bin/x64/Release/net8.0-windows10.0.22621.0/win-x64/publish" `
+  -bindvariable WixUILicenseRtf="scripts/installer/license.rtf" `
+  -o Koli.WinUI/dist/Koli_1.0.4.3_x64.msi
+```
+
+> **Note:** WiX v7+ requires a separate OSMF acceptance step. Stick to WiX 5.x for open-source builds.
+
+### Portable app (zip)
+
+Build a self-contained portable zip for Windows x64:
+
+```powershell
+.\scripts\Publish-Koli.ps1 -Target Portable
+```
+
+Or manually:
 
 ```bash
 dotnet publish Koli.WinUI/Koli.WinUI.csproj -c Release -r win-x64
 ```
 
-The output is a `publish/` folder containing `Koli.exe` plus all required DLLs (~390 files). Copy the entire folder anywhere and run `Koli.exe` directly.
+The output is a `publish/` folder containing `Koli.exe` plus all required DLLs (~390 files). The publish script zips this folder to:
+
+```
+Koli.WinUI/dist/Koli_{version}_x64_portable.zip
+```
+
+Extract anywhere and run `Koli.exe` directly. Settings are stored in `Config\` next to the executable.
 
 **Build options reference:**
 
@@ -648,6 +729,8 @@ The output is a `publish/` folder containing `Koli.exe` plus all required DLLs (
 | `-c Release` | Optimised Release build |
 | `-r win-x64` | Windows 64-bit runtime identifier |
 | `-p:WindowsPackageType=MSIX` | Produce a signed `.msix` installer instead of a loose folder |
+| `-Target Portable` | Zip the unpackaged publish folder to `Koli.WinUI/dist/` |
+| `-Target Msi` | Build an MSI installer to `Koli.WinUI/dist/` (requires WiX 5.x) |
 
 ---
 

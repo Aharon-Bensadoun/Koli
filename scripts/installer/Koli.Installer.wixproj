@@ -1,0 +1,22 @@
+<Project Sdk="WixToolset.Sdk/5.0.2">
+  <PropertyGroup>
+    <OutputName Condition="'$(OutputName)' == ''">Koli</OutputName>
+    <OutputPath Condition="'$(OutputPath)' == ''">..\..\Koli.WinUI\dist\</OutputPath>
+    <PublishDir Condition="'$(PublishDir)' == ''">..\..\Koli.WinUI\bin\x64\Release\net8.0-windows10.0.22621.0\win-x64\publish\</PublishDir>
+    <KoliVersion Condition="'$(KoliVersion)' == ''">1.0.0.0</KoliVersion>
+    <DefineConstants>KoliVersion=$(KoliVersion)</DefineConstants>
+    <SuppressIces>ICE64</SuppressIces>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="WixToolset.Util.wixext" Version="5.0.2" />
+    <PackageReference Include="WixToolset.UI.wixext" Version="5.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <BindPath Include="$(PublishDir)">
+      <BindName>PublishPath</BindName>
+    </BindPath>
+    <BindVariable Include="WixUILicenseRtf" Value="license.rtf" />
+  </ItemGroup>
+</Project>

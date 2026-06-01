@@ -31,7 +31,7 @@
   <!-- MSIX packaging (activated with: -p:WindowsPackageType=MSIX) -->
   <PropertyGroup Condition="'$(WindowsPackageType)' != 'None'">
     <AppxPackageSigningEnabled>true</AppxPackageSigningEnabled>
-    <PackageCertificateThumbprint>7FCFC31230B39C9F013C0F82FEA725CCC6D3509E</PackageCertificateThumbprint>
+    <PackageCertificateThumbprint>526708F5A4660B0FC36C5C9F49E24E4F109B220C</PackageCertificateThumbprint>
     <AppxPackageSigningTimestampDigestAlgorithm>SHA256</AppxPackageSigningTimestampDigestAlgorithm>
     <GenerateAppxPackageOnBuild>true</GenerateAppxPackageOnBuild>
     <AppxBundle>Never</AppxBundle>
