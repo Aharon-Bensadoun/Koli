@@ -12,7 +12,7 @@
   <Properties>
     <DisplayName>Koli</DisplayName>
     <PublisherDisplayName>Aharon Bensadoun</PublisherDisplayName>
-    <Logo>Assets\Koli.png</Logo>
+    <Logo>Assets\Koli.jpg</Logo>
   </Properties>
 
   <Dependencies>
@@ -32,8 +32,8 @@
         DisplayName="Koli"
         Description="Real-time speech transcription for Windows"
         BackgroundColor="transparent"
-        Square150x150Logo="Assets\Koli.png"
-        Square44x44Logo="Assets\Koli.png">
+        Square150x150Logo="Assets\Koli.jpg"
+        Square44x44Logo="Assets\Koli.jpg">
       </uap:VisualElements>
       <Extensions>
         <desktop:Extension Category="windows.startupTask">

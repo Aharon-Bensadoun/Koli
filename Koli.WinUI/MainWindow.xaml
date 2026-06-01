@@ -24,7 +24,7 @@
             <Image Width="20" Height="20"
                    VerticalAlignment="Center">
                 <Image.Source>
-                    <BitmapImage UriSource="ms-appx:///Assets/Koli.png"
+                    <BitmapImage UriSource="ms-appx:///Assets/Koli.jpg"
                                  DecodePixelType="Logical"
                                  DecodePixelWidth="20"
                                  DecodePixelHeight="20"/>

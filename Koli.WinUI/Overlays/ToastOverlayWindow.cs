@@ -178,7 +178,7 @@ public sealed class ToastOverlayWindow : WindowEx
 
     private async Task LoadIconAsync()
     {
-        var pngPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Koli.png");
+        var pngPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Koli.jpg");
         var icoPath = Path.Combine(AppContext.BaseDirectory, "Assets", "Koli.ico");
         var path = File.Exists(pngPath) ? pngPath : icoPath;
         if (!File.Exists(path))

@@ -58,7 +58,7 @@
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
-    <Content Include="Assets\Koli.png">
+    <Content Include="Assets\Koli.jpg">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </Content>
@@ -75,7 +75,7 @@
   <Target Name="CopyKoliContentToPublishDir" AfterTargets="Publish">
     <MakeDir Directories="$(PublishDir)Config;$(PublishDir)Assets" />
     <Copy SourceFiles="..\Koli.Core\Config\appsettings.json" DestinationFolder="$(PublishDir)Config\" SkipUnchangedFiles="true" />
-    <Copy SourceFiles="Assets\Koli.ico;Assets\Koli.png" DestinationFolder="$(PublishDir)Assets\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="Assets\Koli.ico;Assets\Koli.jpg" DestinationFolder="$(PublishDir)Assets\" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

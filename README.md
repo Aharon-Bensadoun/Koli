@@ -505,7 +505,7 @@ Koli/
 │   ├── ViewModels/
 │   ├── Dialogs/
 │   ├── Themes/                   # Dark violet Fluent theme
-│   └── Assets/                   # Koli.ico, Koli.png
+│   └── Assets/                   # Koli.ico, Koli.jpg
 ├── Koli.Core.Tests/
 └── README.md
 ```
@@ -611,6 +611,7 @@ Other examples:
 The canonical version is in `Directory.Build.props` at the repo root (also synced to `Package.appxmanifest`).
 
 Manual publish (no version bump):
+
 
 ```bash
 dotnet publish Koli.WinUI/Koli.WinUI.csproj -c Release -r win-x64 -p:WindowsPackageType=MSIX
