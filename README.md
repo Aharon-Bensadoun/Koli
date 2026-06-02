@@ -114,6 +114,8 @@ Download the latest `.msi` from [Releases](https://github.com/Aharon-Bensadoun/K
 2. Accept the **license agreement**, choose an **installation folder** (default: `C:\Program Files\Koli`), then click **Install** (administrator approval may be required).
 3. Launch **Koli** from the Start menu. Uninstall from **Settings → Apps** or **Programs and Features**.
 
+Settings and secrets are stored under `%LocalAppData%\Koli\Config\` (writable without administrator rights). The MSI still ships a read-only template under the install folder; it is copied on first launch if needed.
+
 > **Note:** Launch at startup (Settings → General) is only available in the MSIX-installed version.
 
 ### Option C — Portable app (zip)
@@ -669,7 +671,7 @@ Distribute the entire `…_Test/` folder. Users install the certificate once, th
 
 ### MSI installer
 
-Builds a Windows Installer package with a **visual setup wizard** (welcome, license agreement, folder selection, confirmation). Default install location: `C:\Program Files\Koli`.
+Builds a Windows Installer package with a **visual setup wizard** (welcome, license agreement, folder selection, confirmation). Default install location: `C:\Program Files\Koli`. User-editable configuration is written to `%LocalAppData%\Koli\Config\`, not under Program Files.
 
 **Prerequisite** — install [WiX Toolset](https://wixtoolset.org/) CLI **5.x** (once per machine):
 

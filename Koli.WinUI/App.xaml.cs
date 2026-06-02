@@ -22,9 +22,7 @@ public partial class App : Application
         {
             try
             {
-                var logDir = IsPackagedApp()
-                    ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Koli", "Config")
-                    : Path.Combine(AppContext.BaseDirectory, "Config");
+                var logDir = AppDataLocation.ResolveConfigDirectory(AppContext.BaseDirectory, IsPackagedApp());
                 Directory.CreateDirectory(logDir);
                 File.AppendAllText(Path.Combine(logDir, "startup-error.log"),
                     $"[{DateTime.Now:O}] UNHANDLED: {e.Exception}{Environment.NewLine}");
@@ -53,9 +51,8 @@ public partial class App : Application
         }
 
         var installDirectory = AppContext.BaseDirectory;
-        var dataDirectory = IsPackagedApp()
-            ? Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Koli")
-            : installDirectory;
+        var isPackaged = IsPackagedApp();
+        var dataDirectory = AppDataLocation.ResolveDataDirectory(installDirectory, isPackaged);
         var configPath = Path.Combine(dataDirectory, "Config", "appsettings.json");
         EnsureConfigFile(configPath, installDirectory);
 

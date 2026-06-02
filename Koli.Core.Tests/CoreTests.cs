@@ -7,6 +7,53 @@ using Xunit;
 
 namespace Koli.Core.Tests;
 
+public class AppDataLocationTests
+{
+    [Fact]
+    public void ResolveDataDirectory_UsesLocalAppData_WhenInstalledUnderProgramFiles()
+    {
+        var programFiles = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles);
+        var installDir = Path.Combine(programFiles, "Koli");
+
+        var dataDir = AppDataLocation.ResolveDataDirectory(installDir, isPackagedApp: false);
+
+        Assert.Equal(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Koli"),
+            dataDir);
+    }
+
+    [Fact]
+    public void ResolveDataDirectory_UsesInstallDirectory_ForPortableOrDevLayout()
+    {
+        var installDir = Path.Combine(Path.GetTempPath(), "koli-portable-" + Guid.NewGuid());
+
+        var dataDir = AppDataLocation.ResolveDataDirectory(installDir, isPackagedApp: false);
+
+        Assert.Equal(installDir, dataDir);
+    }
+
+    [Fact]
+    public void ResolveDataDirectory_UsesLocalAppData_WhenPackaged()
+    {
+        var installDir = Path.Combine(Path.GetTempPath(), "koli-msix-" + Guid.NewGuid());
+
+        var dataDir = AppDataLocation.ResolveDataDirectory(installDir, isPackagedApp: true);
+
+        Assert.Equal(
+            Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Koli"),
+            dataDir);
+    }
+
+    [Theory]
+    [InlineData(@"C:\Program Files\Koli\", true)]
+    [InlineData(@"C:\Program Files (x86)\Koli", true)]
+    [InlineData(@"C:\Users\me\Desktop\Koli", false)]
+    public void IsInstalledUnderProgramFiles_DetectsProtectedInstallRoots(string installDir, bool expected)
+    {
+        Assert.Equal(expected, AppDataLocation.IsInstalledUnderProgramFiles(installDir));
+    }
+}
+
 public class InputLanguageServiceTests
 {
     [Theory]
