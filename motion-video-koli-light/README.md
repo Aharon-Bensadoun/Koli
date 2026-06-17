@@ -4,15 +4,27 @@ A second, **stylistically different** promo for **Koli** (real-time speech trans
 meeting assistant for Windows), built as a deterministic HTML composition and rendered
 frame-by-frame to a clean 1920×1080 MP4.
 
-Where `motion-video-koli/` is the **dark / aurora** cut, this is the **light, premium B2B
-"product-tour"** cut in the *Gojiberry* style:
+This is the **light "Daylight"** cut, recoloured to match the **real Koli identity** and
+mirroring the actual WinUI screens (Home / Meeting / Assistant):
 
-- **Clean white canvas** + subtle blue grid, soft **2.5D drop shadows** on floating UI layers.
-- **Tech blue** (`#2563EB`) as the base, with **vivid orange/red** pops (`#FB6514`).
-- **Bold geometric kinetic typography** (letters cascade, colour sweeps on key words).
-- A signature **custom mouse cursor** that travels along precise paths and triggers
-  synchronized **button / toggle states** (micro-interactions), plus snappy easing,
-  staggered cascades and short blur **whip** entrances.
+- **Authentic AURORA palette** (from `Koli.WinUI/Themes/Colors.xaml` + `Aurora.xaml`):
+  violet `#7C3AED` → indigo `#5B5EE3` → cyan `#22D3EE` → rose `#F472B6`, with **coral
+  recording** `#FF4D6A` and a **cyan assistant** accent — on the light *Daylight* surfaces
+  (`#F7F7FB` / `#FFFFFF`, ink `#101122`).
+- **Modern type system** (bundled locally in `vendor/fonts/`): **Space Grotesk** for
+  display/hero, **Sora** for UI/body, Cascadia Mono for code/timers.
+- **Real-app screens:** the circular **Aurora record button** + live waveform + keybinding
+  chips (Home), **diarized per-speaker transcript** + participants + export (Meeting), a
+  glowing **assistant orb + live conversation** (Alt Gr), rewrite/translate editor.
+- A signature **custom mouse cursor** that travels along auto-measured paths and triggers
+  synchronized **button / toggle states** (micro-interactions).
+- **A distinct, dynamic transition per cut:** aurora streak whip, iris close, vertical
+  wipe, spin punch, panel split, light bloom — each paired with a different entrance
+  (slide / isometric / scale-up / orb assemble / 3D flip / bloom).
+- **Living atmosphere:** drifting colour-mesh blobs, slow conic *aurora*, film grain,
+  floating particles, **depth-of-field** focus pulls, glossy **light-sheen sweeps**.
+  Everything is GSAP-driven (a second, frame-locked *ambient* timeline) so the whole thing
+  stays deterministic and frame-accurate on `window.__seek(t)`.
 
 - **Format:** 16:9, 1920×1080, **~35s**, 60 fps (configurable)
 - **Visuals:** all UI is recreated in pure HTML/CSS/SVG — **no screenshots, no AI images**
@@ -87,7 +99,9 @@ Useful flags: `--only-capture` · `--skip-capture` · `--fps 30`.
 - **Duration / fps / size:** edit `cues.json` (`duration`, `fps`, `width`, `height`).
 - **Scene timing:** scene boundaries are in `cues.json`; animations live in `timeline.js`
   (one IIFE per scene, positioned at absolute times).
-- **Colors / look:** CSS variables at the top of `styles.css` (`--blue`, `--orange`, `--bg`, …).
+- **Colors / look:** CSS variables at the top of `styles.css` (`--violet`, `--cyan`, `--rose`, `--rec`, `--bg`, …).
+- **Fonts:** bundled in `vendor/fonts/` and wired via `--display` / `--font` in `styles.css`.
+- **Transitions:** one `tx*` helper per cut in `timeline.js` (`txStreak`, `txIris`, `txVwipe`, `txSpin`, `txSplit`, `txBloom`).
 - **Copy / text:** edit directly in `index.html`.
 
 ## 5. Files
@@ -113,6 +127,6 @@ motion-video-koli-light/
 | **2 · Dictate** | 4–9s | Press **F9**, live waveform + Recording, text auto-types into a floating Notes window · *Dictate into any app* | Window whip-in (blur), typewriter, waveform | whoosh, click, key taps, ding |
 | **3 · Meeting** | 9–15s | Cursor flips **Microphone** + **System audio** toggles on, speaker-coloured transcript, Speakers/Minutes counters, export TXT/MD/JSON · *Multi-speaker, diarized* | Isometric settle, tactile switch knobs, staggered cards | whoosh, 2× click, pops |
 | **4 · Rewrite** | 15–21s | Cursor clicks **Rewrite** (Raw→Polished), opens language menu, picks **FR** (→ Translated) · *Rewrite & translate on the fly* | Button press state, blur text swaps, dropdown pop | whoosh, clicks, ding |
-| **5 · Assistant** | 21–27s | *Press Alt Gr* — pipeline **Spoken question → Web search → Answer typed back**, ⚡ HANDS-FREE stamp · *Voice assistant, web-aware* | Nodes pop L→R, arrows draw, stamp slam | whoosh, pops, impact |
+| **5 · Assistant** | 21–27s | *Press Alt Gr* — glowing **assistant orb** + live conversation (spoken question → web-search status track → answer typed back), ⚡ HANDS-FREE · *Voice assistant, web-aware* | Spin-punch cut, orb assembles & breathes, bubbles + status track, answer typing | whoosh, pops, impact |
 | **6 · Trust** | 27–31s | *Private by design* — 4 trust cards (encrypted keys, runs locally, hallucination filter, recovery) | Cards cascade, checkmarks pop | whoosh, dings |
 | **7 · CTA** | 31–35s | Logo recompose, *"Speak. It types itself."*, cursor presses **Get Koli — free**, Windows 10 \| 11 | White flash cut, button press, fade to white | impact, whoosh, click, ding |

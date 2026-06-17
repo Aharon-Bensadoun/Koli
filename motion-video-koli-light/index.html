@@ -3,32 +3,38 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>Koli — Motion (Light)</title>
+<title>Koli — Motion (Daylight)</title>
 <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
 <div id="viewport">
   <div id="stage">
 
-    <!-- Static background layers (clean / corporate / light) -->
-    <div class="bg-base"></div>
-    <div class="bg-grid"></div>
-    <div class="bg-glow"></div>
-    <div class="bg-vignette"></div>
+    <!-- Atmospheric background (parallax + DOF unit, motion via GSAP) -->
+    <div id="bg">
+      <div class="bg-base"></div>
+      <div class="bg-aurora"></div>
+      <div class="bg-blob b1"></div>
+      <div class="bg-blob b2"></div>
+      <div class="bg-blob b3"></div>
+      <div class="bg-grid"></div>
+      <div class="bg-glow"></div>
+      <div class="bg-vignette"></div>
+      <div class="bg-noise"></div>
+    </div>
+    <div id="particles"></div>
 
-    <!-- Camera (for whip pans + subtle moves) -->
+    <!-- Camera (whip pans / zoom-through transitions) -->
     <div id="camera">
 
       <!-- ============ SCENE 1 — INTRO / WORDMARK ============ -->
       <section class="scene" id="s-intro">
         <div class="center-stack">
           <div class="logo-badge" id="intro-badge">
-            <div class="logo-ring" id="intro-ring"></div>
+            <div class="logo-ring conic" id="intro-ring"></div>
             <img src="assets/logo.jpg" alt="Koli" />
           </div>
-          <div class="wordmark" id="intro-word">
-            <span class="word">K</span><span class="word">o</span><span class="word">l</span><span class="word">i</span>
-          </div>
+          <div class="wordmark grad" id="intro-word">Koli</div>
           <div class="subline" id="intro-tag">
             Your voice, <span class="hl">instantly at work.</span>
           </div>
@@ -36,36 +42,68 @@
         </div>
       </section>
 
-      <!-- ============ SCENE 2 — ONE SHORTCUT (F9) ============ -->
+      <!-- ============ SCENE 2 — HOME / DICTATE (F9) ============ -->
       <section class="scene" id="s-dictate">
-        <div class="dict-grid">
-          <div class="dict-left">
-            <div class="step-eyebrow" data-eyebrow>One shortcut</div>
-            <div class="big-line" id="dict-line">
-              Press <span class="key-inline">F9</span>.<br/>
-              <span class="word">Speak.</span> <span class="word"><span class="hl orange">It types itself.</span></span>
-            </div>
-            <div class="rec-row" id="dict-rec">
-              <span class="rec-blob"></span> Recording
-              <div class="waveform" id="waveform">
-                <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
-                <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
-                <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
-                <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
-                <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
-                <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
-              </div>
-            </div>
+        <div class="home-stage">
+          <div class="screen-head">
+            <div class="eyebrow" data-eyebrow>DICTATION <i class="eb-underline"></i></div>
+            <div class="screen-title">Live transcription</div>
+            <div class="screen-sub">F9 dictate · Alt&nbsp;Gr assistant · F6 pause · F7 cancel</div>
           </div>
 
-          <div class="app-window float" id="dict-window">
-            <div class="titlebar">
-              <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
-              <span class="url">Untitled — Notes</span>
+          <div class="home-grid">
+            <!-- The real Koli Home hero card -->
+            <div class="app-card hero float" id="dict-window">
+              <div class="card-head">
+                <div class="ch-title">Live transcript</div>
+                <div class="ch-right">
+                  <span class="rec-chip" id="dict-recchip"><span class="rec-blob"></span> REC</span>
+                  <span class="timer" id="dict-timer">00:00</span>
+                </div>
+              </div>
+              <div class="aurora-divider"></div>
+              <div class="transcript-body"><span id="dict-live"></span><span class="caret" id="dict-caret"></span></div>
+
+              <div class="action-row">
+                <div class="record" id="dict-record">
+                  <span class="rec-halo" id="dict-halo"></span>
+                  <span class="rec-ring" id="dict-ring"></span>
+                  <span class="rec-core">
+                    <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
+                  </span>
+                </div>
+                <div class="audio-col">
+                  <div class="eyebrow sm">AUDIO <i class="eb-underline"></i></div>
+                  <div class="waveform" id="waveform">
+                    <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+                    <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+                    <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+                    <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+                    <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+                    <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+                    <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+                    <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+                  </div>
+                </div>
+                <div class="keys">
+                  <div class="keyrow"><span class="kbd">F9</span> Toggle dictation</div>
+                  <div class="keyrow"><span class="kbd accent">Alt&nbsp;Gr</span> Voice assistant</div>
+                  <div class="keyrow"><span class="kbd">F6 / F7</span> Pause / cancel</div>
+                </div>
+              </div>
             </div>
-            <div class="doc">
-              <div class="typed"><span id="dict-typed"></span><span class="caret" id="dict-caret"></span></div>
+
+            <!-- Floating active window receiving the auto-typed text -->
+            <div class="app-window target float" id="dict-target">
+              <div class="titlebar">
+                <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
+                <span class="url">Mail — New message</span>
+              </div>
+              <div class="doc">
+                <div class="typed"><span id="dict-typed"></span><span class="caret" id="dict-caret2"></span></div>
+              </div>
             </div>
+            <div class="autotype-flow" id="dict-flow">Auto-type →</div>
           </div>
         </div>
         <div class="feature-tag" data-ftag>
@@ -77,41 +115,60 @@
       <!-- ============ SCENE 3 — MEETING CAPTURE ============ -->
       <section class="scene" id="s-meeting">
         <div class="meet-stage">
+          <div class="screen-head">
+            <div class="eyebrow" data-eyebrow>MEETING MODE <i class="eb-underline"></i></div>
+            <div class="screen-title">Multi-speaker capture</div>
+          </div>
+
           <div class="app-window wide float" id="meet-window">
             <div class="titlebar">
               <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
               <span class="url">Koli — Meeting</span>
               <span class="live-pill"><span class="rec-blob"></span> Live · diarizing</span>
             </div>
-            <div class="meet">
-              <div class="side">
-                <div class="brandrow"><img src="assets/logo.jpg" alt=""/><span>Sources</span></div>
-                <label class="switch on" id="meet-mic"><span class="sw-ic">🎤</span> Microphone <span class="knob"></span></label>
-                <label class="switch on" id="meet-sys"><span class="sw-ic">🔊</span> System audio <span class="knob"></span></label>
-                <div class="meet-stats">
-                  <div class="meet-stat" data-mstat>
-                    <div class="lbl">Speakers</div>
-                    <div class="val" data-count="3">0</div>
-                  </div>
-                  <div class="meet-stat" data-mstat>
-                    <div class="lbl">Minutes</div>
-                    <div class="val orange" data-count="42">0</div>
-                  </div>
+
+            <div class="meet-source-row">
+              <span class="combo" id="meet-source">🎙️ Mic + System Audio <span class="caret-down">▾</span></span>
+              <span class="combo">GPT-4o diarization</span>
+              <div class="meet-meta">
+                <div class="meta-item"><span class="lbl">Status</span><span class="val">Recording</span></div>
+                <div class="meta-item"><span class="lbl">Duration</span><span class="val mono" id="meet-timer">00:00</span></div>
+              </div>
+            </div>
+
+            <div class="meet-body">
+              <div class="meet-col">
+                <div class="col-head"><span class="ct">Transcript</span><span class="count" data-count="3">0</span></div>
+                <div class="seg" data-line>
+                  <div class="seg-rail s1"></div>
+                  <div class="seg-card"><div class="seg-spk"><span class="seg-dot s1"></span><span class="s1">Aharon</span></div>
+                    <div class="seg-txt">Let's lock the release for Friday.</div></div>
+                </div>
+                <div class="seg" data-line>
+                  <div class="seg-rail s2"></div>
+                  <div class="seg-card"><div class="seg-spk"><span class="seg-dot s2"></span><span class="s2">Maya</span></div>
+                    <div class="seg-txt">I'll finish the meeting export today.</div></div>
+                </div>
+                <div class="seg" data-line>
+                  <div class="seg-rail s3"></div>
+                  <div class="seg-card"><div class="seg-spk"><span class="seg-dot s3"></span><span class="s3">David</span></div>
+                    <div class="seg-txt">System audio capture works on Teams.</div></div>
                 </div>
               </div>
-              <div class="main">
-                <div class="transcript">
-                  <div class="utt" data-line><span class="spk a">Aharon</span><span class="txt">Let's lock the release for Friday.</span></div>
-                  <div class="utt" data-line><span class="spk b">Maya</span><span class="txt">I'll finish the meeting export today.</span></div>
-                  <div class="utt" data-line><span class="spk c">David</span><span class="txt">System audio capture works on Teams.</span></div>
-                </div>
-                <div class="export-rail">
-                  <span class="lbl">Export</span>
-                  <span class="exp-chip" data-exp>TXT</span>
-                  <span class="exp-chip" data-exp>MD</span>
-                  <span class="exp-chip" data-exp>JSON</span>
-                </div>
+
+              <div class="meet-col right">
+                <div class="col-head"><span class="ct">Participants</span><span class="count" data-count="3">0</span></div>
+                <div class="part" data-part><span class="avatar s1">AB</span><span class="part-name">Aharon</span></div>
+                <div class="part" data-part><span class="avatar s2">MR</span><span class="part-name">Maya</span></div>
+                <div class="part" data-part><span class="avatar s3">DK</span><span class="part-name">David</span></div>
               </div>
+            </div>
+
+            <div class="export-rail">
+              <span class="lbl">Export</span>
+              <span class="exp-chip" data-exp>TXT</span>
+              <span class="exp-chip" data-exp>MD</span>
+              <span class="exp-chip" data-exp>JSON</span>
             </div>
           </div>
         </div>
@@ -128,6 +185,7 @@
             <div class="editor-head">
               <span class="badge" id="rw-badge">Raw</span>
               <div class="editor-tools">
+                <span class="model-chip">gpt-4o</span>
                 <button class="ebtn" id="rw-btn">✦ Rewrite</button>
                 <div class="lang-select" id="rw-lang">
                   <span class="lang-cur" id="rw-lang-cur">EN</span>
@@ -151,27 +209,42 @@
 
       <!-- ============ SCENE 5 — VOICE ASSISTANT (Alt Gr) ============ -->
       <section class="scene" id="s-assistant">
-        <div class="assist-top">
-          <div class="step-eyebrow" data-eyebrow>Press Alt&nbsp;Gr</div>
-          <div class="big-line" id="assist-head">Just <span class="hl">ask out loud.</span></div>
-        </div>
-        <div class="pipeline" id="assist-pipe">
-          <div class="pnode" data-pnode>
-            <span class="pic mic">🎤</span>
-            <span class="pttl">Spoken question</span>
-            <span class="psub">"What changed in the API?"</span>
+        <div class="assist-stage">
+          <div class="assist-head-wrap">
+            <div class="eyebrow" data-eyebrow>PRESS ALT&nbsp;GR <i class="eb-underline"></i></div>
+            <div class="assist-title" id="assist-head">Just <span class="hl cyan">ask out loud.</span></div>
           </div>
-          <span class="parrow" data-parrow>→</span>
-          <div class="pnode" data-pnode>
-            <span class="pic search">🔎</span>
-            <span class="pttl">Web search</span>
-            <span class="psub">Responses API · web-aware</span>
-          </div>
-          <span class="parrow" data-parrow>→</span>
-          <div class="pnode" data-pnode>
-            <span class="pic type">⌨️</span>
-            <span class="pttl">Answer typed back</span>
-            <span class="psub">straight into your window</span>
+
+          <div class="assist-flow">
+            <!-- Glowing assistant orb -->
+            <div class="orb" id="assist-orb">
+              <span class="orb-glow" id="orb-glow"></span>
+              <span class="orb-ring r1" data-ring></span>
+              <span class="orb-ring r2" data-ring></span>
+              <span class="orb-ring r3" data-ring></span>
+              <span class="orb-core">
+                <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 0 0 3-3V6a3 3 0 1 0-6 0v5a3 3 0 0 0 3 3Zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.92V21h2v-3.08A7 7 0 0 0 19 11h-2Z"/></svg>
+              </span>
+            </div>
+
+            <!-- Conversation -->
+            <div class="convo">
+              <div class="bubble user" data-conv>
+                <span class="bub-ic">🎤</span>
+                <span class="bub-tx">"What changed in the API?"</span>
+              </div>
+              <div class="status-track" data-conv>
+                <span class="st-step" data-st>Listening</span>
+                <span class="st-line" data-stline></span>
+                <span class="st-step" data-st>Responses API · web search</span>
+                <span class="st-line" data-stline></span>
+                <span class="st-step" data-st>Typing answer</span>
+              </div>
+              <div class="bubble bot" data-conv>
+                <span class="bub-ic ai">✦</span>
+                <span class="bub-tx"><span id="assist-answer"></span><span class="caret"></span></span>
+              </div>
+            </div>
           </div>
         </div>
         <div class="hands-free" id="assist-hf">⚡ HANDS-FREE</div>
@@ -186,10 +259,10 @@
         <div class="trust-stage">
           <div class="trust-head" id="trust-head">Private by design.</div>
           <div class="trust-grid">
-            <div class="trust-card" data-trust><span class="tbox">✓</span><div class="tcopy"><b>Encrypted keys</b><span>DPAPI-bound to your account</span></div></div>
-            <div class="trust-card" data-trust><span class="tbox">✓</span><div class="tcopy"><b>Runs locally</b><span>your audio stays on your PC</span></div></div>
-            <div class="trust-card" data-trust><span class="tbox">✓</span><div class="tcopy"><b>Hallucination filter</b><span>drops garbled output</span></div></div>
-            <div class="trust-card" data-trust><span class="tbox">✓</span><div class="tcopy"><b>Recovery built-in</b><span>never lose a recording</span></div></div>
+            <div class="trust-card" data-trust><span class="tbox">🔒</span><div class="tcopy"><b>Windows DPAPI</b><span>keys encrypted, bound to your account</span></div></div>
+            <div class="trust-card" data-trust><span class="tbox">💻</span><div class="tcopy"><b>Runs locally</b><span>your audio stays on your PC</span></div></div>
+            <div class="trust-card" data-trust><span class="tbox">✓</span><div class="tcopy"><b>Hallucination filter</b><span>drops garbled Whisper output</span></div></div>
+            <div class="trust-card" data-trust><span class="tbox">⌨️</span><div class="tcopy"><b>Auto-type anywhere</b><span>into any active window</span></div></div>
           </div>
         </div>
         <div class="feature-tag" data-ftag>
@@ -204,8 +277,8 @@
           <div class="logo-badge" id="cta-badge" style="width:150px;height:150px;border-radius:30px;">
             <img src="assets/logo.jpg" alt="Koli" />
           </div>
-          <div class="wordmark" id="cta-name" style="font-size:104px;">Koli</div>
-          <div class="cta-tag" id="cta-tag">Speak. <span class="hl orange">It types itself.</span></div>
+          <div class="wordmark grad" id="cta-name" style="font-size:104px;">Koli</div>
+          <div class="cta-tag" id="cta-tag">Speak. <span class="hl">It types itself.</span></div>
           <button class="cta-btn" id="cta-btn">Get Koli — free</button>
           <div class="platform" id="platform">Windows&nbsp;10 <span class="sep">|</span> 11</div>
         </div>
@@ -213,7 +286,15 @@
 
     </div><!-- /#camera -->
 
-    <!-- Gojiberry-style custom cursor -->
+    <!-- Transition FX layer (per-scene dynamic cuts) -->
+    <div id="fx">
+      <div class="fx-bar lead" id="fx-lead"></div>
+      <div class="fx-bar trail" id="fx-trail"></div>
+      <div class="fx-panel" id="fx-panel"></div>
+      <div class="fx-panel" id="fx-panel2"></div>
+    </div>
+
+    <!-- Custom cursor -->
     <div id="cursor"><svg viewBox="0 0 24 24"><path d="M3 2 L3 21 L8 16 L11.5 23 L14 22 L10.5 15 L17 15 Z"/></svg></div>
 
     <div id="flash"></div>
