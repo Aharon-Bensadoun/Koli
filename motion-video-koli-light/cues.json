@@ -1,0 +1,81 @@
+{
+  "_comment": "Single source of truth for the Koli LIGHT / corporate (\"Gojiberry-style\") motion video. Consumed by timeline.js (visual timing + live SFX preview) and by the render pipeline (frame count + ffmpeg audio mux). Times are in SECONDS.",
+  "fps": 60,
+  "duration": 35,
+  "width": 1920,
+  "height": 1080,
+  "scenes": [
+    { "id": "intro",     "label": "Title card / wordmark",        "start": 0.0,  "end": 4.0 },
+    { "id": "dictate",   "label": "One shortcut (F9 -> type)",     "start": 4.0,  "end": 9.0 },
+    { "id": "meeting",   "label": "Meeting capture / diarized",    "start": 9.0,  "end": 15.0 },
+    { "id": "rewrite",   "label": "Rewrite & translate (cursor)",  "start": 15.0, "end": 21.0 },
+    { "id": "assistant", "label": "Voice assistant (Alt Gr)",      "start": 21.0, "end": 27.0 },
+    { "id": "privacy",   "label": "Trust band",                    "start": 27.0, "end": 31.0 },
+    { "id": "cta",       "label": "CTA / outro",                   "start": 31.0, "end": 35.0 }
+  ],
+  "audio": {
+    "music": { "file": "audio/music.mp3", "gain": 0.26, "fadeOut": 1.6 },
+    "voice": [
+      { "time": 0.2,  "file": "audio/voice_1_intro.mp3",     "gain": 1.0 },
+      { "time": 4.2,  "file": "audio/voice_2_dictate.mp3",   "gain": 1.0 },
+      { "time": 9.2,  "file": "audio/voice_3_meeting.mp3",   "gain": 1.0 },
+      { "time": 15.2, "file": "audio/voice_4_rewrite.mp3",   "gain": 1.0 },
+      { "time": 21.2, "file": "audio/voice_5_assistant.mp3", "gain": 1.0 },
+      { "time": 27.2, "file": "audio/voice_6_privacy.mp3",   "gain": 1.0 },
+      { "time": 31.2, "file": "audio/voice_7_cta.mp3",       "gain": 1.0 }
+    ],
+    "sfx": [
+      { "time": 0.30,  "file": "audio/whoosh.mp3", "gain": 0.6 },
+      { "time": 0.55,  "file": "audio/pop.mp3",    "gain": 0.6 },
+      { "time": 1.10,  "file": "audio/pop.mp3",    "gain": 0.6 },
+      { "time": 2.40,  "file": "audio/click.mp3",  "gain": 0.7 },
+
+      { "time": 4.00,  "file": "audio/whoosh.mp3", "gain": 0.7 },
+      { "time": 4.85,  "file": "audio/click.mp3",  "gain": 0.9 },
+      { "time": 5.10,  "file": "audio/type.mp3",   "gain": 0.7 },
+      { "time": 5.45,  "file": "audio/type.mp3",   "gain": 0.7 },
+      { "time": 5.80,  "file": "audio/type.mp3",   "gain": 0.7 },
+      { "time": 6.15,  "file": "audio/type.mp3",   "gain": 0.7 },
+      { "time": 6.50,  "file": "audio/type.mp3",   "gain": 0.7 },
+      { "time": 6.85,  "file": "audio/type.mp3",   "gain": 0.7 },
+      { "time": 7.30,  "file": "audio/ding.mp3",   "gain": 0.75 },
+
+      { "time": 9.00,  "file": "audio/whoosh.mp3", "gain": 0.7 },
+      { "time": 9.70,  "file": "audio/click.mp3",  "gain": 0.8 },
+      { "time": 10.05, "file": "audio/click.mp3",  "gain": 0.8 },
+      { "time": 10.90, "file": "audio/pop.mp3",    "gain": 0.6 },
+      { "time": 11.40, "file": "audio/pop.mp3",    "gain": 0.6 },
+      { "time": 11.90, "file": "audio/pop.mp3",    "gain": 0.6 },
+      { "time": 12.40, "file": "audio/pop.mp3",    "gain": 0.6 },
+      { "time": 13.60, "file": "audio/pop.mp3",    "gain": 0.55 },
+      { "time": 13.80, "file": "audio/pop.mp3",    "gain": 0.55 },
+      { "time": 14.00, "file": "audio/pop.mp3",    "gain": 0.55 },
+
+      { "time": 15.00, "file": "audio/whoosh.mp3", "gain": 0.7 },
+      { "time": 16.40, "file": "audio/click.mp3",  "gain": 0.9 },
+      { "time": 16.70, "file": "audio/whoosh.mp3", "gain": 0.55 },
+      { "time": 18.60, "file": "audio/click.mp3",  "gain": 0.9 },
+      { "time": 19.00, "file": "audio/whoosh.mp3", "gain": 0.55 },
+      { "time": 20.10, "file": "audio/ding.mp3",   "gain": 0.7 },
+
+      { "time": 21.00, "file": "audio/whoosh.mp3", "gain": 0.7 },
+      { "time": 21.85, "file": "audio/click.mp3",  "gain": 0.85 },
+      { "time": 22.70, "file": "audio/pop.mp3",    "gain": 0.6 },
+      { "time": 23.40, "file": "audio/pop.mp3",    "gain": 0.6 },
+      { "time": 24.10, "file": "audio/pop.mp3",    "gain": 0.6 },
+      { "time": 24.80, "file": "audio/ding.mp3",   "gain": 0.8 },
+      { "time": 25.20, "file": "audio/impact.mp3", "gain": 0.7 },
+
+      { "time": 27.00, "file": "audio/whoosh.mp3", "gain": 0.7 },
+      { "time": 27.65, "file": "audio/ding.mp3",   "gain": 0.7 },
+      { "time": 28.10, "file": "audio/ding.mp3",   "gain": 0.7 },
+      { "time": 28.55, "file": "audio/ding.mp3",   "gain": 0.7 },
+      { "time": 29.00, "file": "audio/ding.mp3",   "gain": 0.7 },
+
+      { "time": 31.00, "file": "audio/impact.mp3", "gain": 0.9 },
+      { "time": 31.10, "file": "audio/whoosh.mp3", "gain": 0.7 },
+      { "time": 31.80, "file": "audio/click.mp3",  "gain": 0.85 },
+      { "time": 32.60, "file": "audio/ding.mp3",   "gain": 0.85 }
+    ]
+  }
+}
