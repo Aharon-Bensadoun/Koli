@@ -1,0 +1,14 @@
+{
+  "name": "koli-motion-light-render",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Deterministic HTML->MP4 renderer for the Koli LIGHT (\"Gojiberry\") motion-design video.",
+  "type": "commonjs",
+  "scripts": {
+    "render": "node render.js",
+    "capture": "node render.js --only-capture"
+  },
+  "dependencies": {
+    "puppeteer": "^23.0.0"
+  }
+}
