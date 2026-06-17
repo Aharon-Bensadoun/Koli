@@ -1,0 +1,438 @@
+/* ============================================================================
+   Koli — Motion Design Video  |  Visual system (dark violet / aurora style)
+   1920x1080 stage, scaled to viewport. All UI is recreated as vector mockups.
+   ========================================================================== */
+
+:root {
+  /* Brand (Koli aurora violet) */
+  --brand:        #7C3AED;   /* aurora violet */
+  --brand-dark:   #4F1FB8;   /* aurora deep */
+  --brand-light:  #A78BFA;   /* aurora glow */
+  /* Aurora accents */
+  --neon:         #4ADE80;   /* success green — validations / lit states */
+  --neon-soft:    #22C55E;
+  --cyan:         #22D3EE;   /* aurora cyan */
+  --rose:         #F472B6;   /* aurora rose */
+  /* Surfaces */
+  --bg:           #0C0C16;
+  --void:         #06060B;
+  --panel:        #13131F;
+  --panel-2:      #1F1F2E;
+  --line:         #2A2B3A;
+  --line-soft:    #21222733;
+  /* Text */
+  --ink:          #F4F4FC;
+  --ink-dim:      #B3B7C5;
+  --ink-faint:    #6E7280;
+  --danger:       #FF4D6A;   /* recording red */
+  --warn:         #FBBF24;
+
+  --glow-brand: 0 0 22px rgba(124,58,237,.55), 0 0 60px rgba(124,58,237,.28);
+  --glow-neon:  0 0 22px rgba(74,222,128,.50), 0 0 60px rgba(74,222,128,.22);
+  --glow-cyan:  0 0 22px rgba(34,211,238,.55), 0 0 60px rgba(34,211,238,.22);
+  --glow-rose:  0 0 22px rgba(244,114,182,.50), 0 0 60px rgba(244,114,182,.22);
+  --glow-rec:   0 0 22px rgba(255,77,106,.60), 0 0 60px rgba(255,77,106,.25);
+
+  --font: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Ubuntu, "Helvetica Neue", Arial, sans-serif;
+  --mono: "Cascadia Code", "Consolas", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: #000;
+  overflow: hidden;
+  font-family: var(--font);
+  color: var(--ink);
+}
+
+/* ----- Stage: fixed 1920x1080, scaled by JS to fit viewport ---------------- */
+#viewport {
+  position: fixed; inset: 0;
+  display: grid; place-items: center;
+  background: #000;
+}
+#stage {
+  position: relative;
+  width: 1920px; height: 1080px;
+  transform-origin: center center;
+  overflow: hidden;
+  background: var(--bg);
+}
+
+/* ----- Background layers --------------------------------------------------- */
+.bg-grid, .bg-dots, .bg-glow, .bg-vignette, .bg-noise {
+  position: absolute; inset: -10%;
+  pointer-events: none;
+}
+.bg-grid {
+  background-image:
+    linear-gradient(rgba(255,255,255,.035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,.035) 1px, transparent 1px);
+  background-size: 64px 64px;
+  mask-image: radial-gradient(ellipse 80% 70% at 50% 45%, #000 55%, transparent 100%);
+}
+.bg-dots {
+  background-image: radial-gradient(rgba(255,255,255,.05) 1.4px, transparent 1.6px);
+  background-size: 32px 32px;
+  opacity: .5;
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 50%, #000 40%, transparent 100%);
+}
+.bg-glow {
+  background:
+    radial-gradient(circle at 20% 22%, rgba(124,58,237,.26), transparent 42%),
+    radial-gradient(circle at 82% 30%, rgba(34,211,238,.16), transparent 44%),
+    radial-gradient(circle at 78% 80%, rgba(244,114,182,.14), transparent 46%);
+}
+.bg-vignette {
+  background: radial-gradient(ellipse 75% 75% at 50% 50%, transparent 55%, rgba(0,0,0,.72) 100%);
+}
+.bg-noise {
+  opacity: .025;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ----- Camera (for shake / global motion) --------------------------------- */
+#camera {
+  position: absolute; inset: 0;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+/* ----- Scenes -------------------------------------------------------------- */
+.scene {
+  position: absolute; inset: 0;
+  display: grid; place-items: center;
+  opacity: 0;
+  will-change: opacity, transform;
+}
+.scene-inner { position: relative; width: 100%; height: 100%; }
+
+/* ----- Kinetic typography -------------------------------------------------- */
+.kicker {
+  font-size: 26px; letter-spacing: .42em; text-transform: uppercase;
+  color: var(--brand-light); font-weight: 600;
+  text-shadow: var(--glow-brand);
+}
+.headline {
+  font-size: 104px; font-weight: 800; line-height: 1.02; letter-spacing: -.02em;
+  color: var(--ink);
+}
+.headline.sm { font-size: 78px; }
+.subline { font-size: 34px; color: var(--ink-dim); font-weight: 500; }
+
+.word { display: inline-block; will-change: transform, opacity; transform-origin: 50% 70%; }
+
+/* Aurora capsule highlight around key words */
+.capsule {
+  display: inline-block; position: relative;
+  padding: .08em .42em; border-radius: 999px;
+  color: #fff; font-weight: 800;
+  background: linear-gradient(180deg, var(--brand-light), var(--brand));
+  box-shadow: var(--glow-brand);
+  transform: rotate(-3deg);
+  will-change: transform, opacity;
+}
+.capsule.cyan {
+  color: #04212b; background: linear-gradient(180deg, var(--cyan), #0ea5c4);
+  box-shadow: var(--glow-cyan); transform: rotate(3deg);
+}
+.capsule.green {
+  color: #052e16; background: linear-gradient(180deg, var(--neon), var(--neon-soft));
+  box-shadow: var(--glow-neon);
+}
+
+.center-stack {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 28px; text-align: center;
+}
+
+/* Feature label chip (bottom band) */
+.feature-tag {
+  position: absolute; left: 50%; bottom: 96px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 18px;
+  font-size: 40px; font-weight: 700; color: var(--ink);
+  white-space: nowrap;
+}
+.feature-tag .dot { width: 14px; height: 14px; border-radius: 50%;
+  background: var(--brand-light); box-shadow: var(--glow-brand); }
+.feature-num {
+  font-family: var(--mono); font-size: 24px; color: var(--brand-light);
+  border: 1px solid rgba(167,139,250,.4); border-radius: 8px; padding: 4px 10px;
+  text-shadow: var(--glow-brand);
+}
+
+/* ============================ SCENE 1 — HOOK =============================== */
+.app-chip {
+  position: absolute; display: flex; align-items: center; gap: 14px;
+  padding: 18px 26px; border-radius: 16px;
+  background: var(--panel); border: 1px solid var(--line);
+  color: var(--ink); font-size: 26px; font-weight: 600;
+  box-shadow: 0 16px 50px rgba(0,0,0,.5);
+  will-change: transform, opacity;
+}
+.app-chip .ic {
+  width: 42px; height: 42px; border-radius: 10px; display: grid; place-items: center;
+  font-size: 22px; background: rgba(124,58,237,.16); color: var(--brand-light);
+}
+.ask {
+  position: absolute; font-family: var(--mono); font-weight: 700;
+  font-size: 30px; color: var(--cyan); text-shadow: var(--glow-cyan);
+  will-change: transform, opacity;
+}
+
+/* ============================ SCENE 2 — LOGO ============================== */
+.logo-wrap {
+  position: absolute; inset: 0; display: flex; flex-direction: column;
+  align-items: center; justify-content: center; gap: 30px;
+}
+.logo-badge {
+  position: relative; width: 230px; height: 230px; border-radius: 38px;
+  display: grid; place-items: center; overflow: hidden;
+  background: radial-gradient(circle at 50% 35%, #241a3e, #120c20);
+  border: 1px solid rgba(167,139,250,.4);
+  box-shadow: var(--glow-brand), inset 0 0 40px rgba(124,58,237,.2);
+  will-change: transform, opacity;
+}
+.logo-badge img { width: 100%; height: 100%; object-fit: cover;
+  filter: drop-shadow(0 0 18px rgba(167,139,250,.55)); }
+.logo-ring {
+  position: absolute; inset: -22px; border-radius: 50px;
+  border: 2px solid rgba(34,211,238,.5); box-shadow: var(--glow-cyan);
+  will-change: transform, opacity;
+}
+.brand-name { font-size: 110px; font-weight: 800; letter-spacing: -.01em; }
+.brand-name b { color: var(--brand-light); }
+.brand-sub { font-size: 30px; letter-spacing: .5em; text-transform: uppercase;
+  color: var(--ink-dim); font-weight: 600; }
+
+/* ====================== SCENE 3 — DICTATION ============================== */
+.dict-stage { position: absolute; inset: 0; }
+
+/* Keycap (F9 / Alt Gr) */
+.keycap {
+  display: inline-flex; flex-direction: column; align-items: center; gap: 12px;
+  will-change: transform, opacity;
+}
+.keycap .cap {
+  min-width: 130px; padding: 22px 30px; border-radius: 18px;
+  font-family: var(--mono); font-size: 48px; font-weight: 800; color: var(--ink);
+  background: linear-gradient(180deg, #20203200, #1a1a2a);
+  border: 1px solid rgba(167,139,250,.5);
+  box-shadow: 0 10px 0 #0c0c16, 0 18px 40px rgba(0,0,0,.6), var(--glow-brand);
+  text-align: center;
+}
+.keycap .cap-label { font-size: 22px; color: var(--ink-dim); font-weight: 600; letter-spacing: .04em; }
+
+.dict-key { position: absolute; left: 230px; top: 430px; }
+
+/* Waveform */
+.waveform {
+  position: absolute; left: 520px; top: 430px;
+  width: 460px; height: 170px;
+  display: flex; align-items: center; justify-content: space-between; gap: 6px;
+  padding: 0 14px;
+}
+.waveform .wbar {
+  flex: 1; min-width: 6px; height: 100%; border-radius: 6px;
+  background: linear-gradient(180deg, var(--brand-light), var(--brand));
+  box-shadow: var(--glow-brand); transform-origin: center; will-change: transform;
+}
+.rec-dot {
+  position: absolute; left: 520px; top: 388px;
+  display: flex; align-items: center; gap: 12px;
+  font-size: 22px; font-weight: 700; color: var(--danger);
+}
+.rec-dot .blob { width: 18px; height: 18px; border-radius: 50%;
+  background: var(--danger); box-shadow: var(--glow-rec); }
+
+/* Mock active-app window where Koli auto-types */
+.app-window {
+  position: absolute; right: 150px; top: 360px;
+  width: 760px; border-radius: 16px; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line);
+  box-shadow: 0 50px 130px rgba(0,0,0,.7);
+  will-change: transform, opacity;
+}
+.titlebar {
+  display: flex; align-items: center; gap: 12px; padding: 16px 22px;
+  background: var(--panel-2); border-bottom: 1px solid var(--line);
+}
+.tdot { width: 14px; height: 14px; border-radius: 50%; background: #3a3b46; }
+.tdot.r { background: var(--danger); } .tdot.y { background: var(--warn); } .tdot.g { background: var(--neon); }
+.titlebar .url { margin-left: 14px; font-family: var(--mono); font-size: 20px; color: var(--ink-faint); }
+.app-window .doc { padding: 34px 38px; min-height: 320px; }
+.app-window .doc .typed { font-size: 30px; line-height: 1.5; color: var(--ink); font-weight: 500; }
+.caret { display: inline-block; width: 12px; height: 30px; background: var(--brand-light);
+  margin-left: 4px; vertical-align: middle; box-shadow: var(--glow-brand); }
+
+/* Engine chips */
+.engine-rail {
+  position: absolute; left: 50%; bottom: 250px; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 18px;
+}
+.engine-chip {
+  display: flex; align-items: center; gap: 12px;
+  padding: 14px 22px; border-radius: 14px;
+  background: var(--panel); border: 1px solid var(--line);
+  font-size: 24px; font-weight: 700; color: var(--ink-dim);
+  box-shadow: 0 12px 36px rgba(0,0,0,.5); will-change: transform, opacity;
+}
+.engine-chip .led { width: 14px; height: 14px; border-radius: 50%; background: #33344a; }
+.engine-chip.lit { color: var(--ink); border-color: rgba(167,139,250,.55); box-shadow: var(--glow-brand); }
+.engine-chip.lit .led { background: var(--brand-light); box-shadow: var(--glow-brand); }
+
+/* ====================== SCENE 4 — MEETING (isometric) ==================== */
+.iso-stage { position: absolute; inset: 0; perspective: 1800px;
+  display: grid; place-items: center; }
+.window {
+  width: 1320px; border-radius: 18px; overflow: hidden;
+  background: var(--panel); border: 1px solid var(--line);
+  box-shadow: 0 60px 140px rgba(0,0,0,.7), 0 0 0 1px rgba(255,255,255,.02) inset;
+  will-change: transform, opacity;
+}
+.meet { display: grid; grid-template-columns: 320px 1fr; min-height: 600px; }
+.meet .side { background: var(--panel-2); border-right: 1px solid var(--line); padding: 26px 22px; }
+.meet .brandrow { display: flex; align-items: center; gap: 12px; margin-bottom: 24px; }
+.meet .brandrow img { width: 36px; height: 36px; border-radius: 8px; object-fit: cover; }
+.meet .brandrow span { font-size: 24px; font-weight: 800; }
+.src-toggle {
+  display: flex; align-items: center; gap: 12px; padding: 14px 16px;
+  border-radius: 12px; color: var(--ink-dim); font-size: 21px; font-weight: 600; margin-bottom: 10px;
+  background: var(--panel); border: 1px solid var(--line);
+}
+.src-toggle .ic { width: 30px; height: 30px; border-radius: 8px; display: grid; place-items: center;
+  background: rgba(124,58,237,.16); color: var(--brand-light); font-size: 18px; }
+.src-toggle.on { color: var(--ink); border-color: rgba(74,222,128,.5); box-shadow: var(--glow-neon); }
+.src-toggle.on .ic { background: rgba(74,222,128,.18); color: var(--neon); }
+.meet-stats { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; margin-top: 22px; }
+.meet-stat { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px;
+  will-change: transform, opacity; }
+.meet-stat .lbl { font-size: 17px; color: var(--ink-dim); font-weight: 600; }
+.meet-stat .val { font-size: 42px; font-weight: 800; margin-top: 4px; color: var(--brand-light); }
+.meet-stat .val.cyan { color: var(--cyan); }
+
+.meet .main { padding: 28px 32px; display: flex; flex-direction: column; }
+.meet .main h3 { font-size: 28px; margin-bottom: 20px; display: flex; align-items: center; gap: 14px; }
+.meet .main h3 .live { font-size: 18px; font-weight: 800; color: var(--danger);
+  display: inline-flex; align-items: center; gap: 8px; }
+.meet .main h3 .live .blob { width: 12px; height: 12px; border-radius: 50%;
+  background: var(--danger); box-shadow: var(--glow-rec); }
+.transcript { display: flex; flex-direction: column; gap: 16px; flex: 1; }
+.utt { display: flex; align-items: flex-start; gap: 16px; will-change: transform, opacity; }
+.spk { flex: none; padding: 6px 16px; border-radius: 999px; font-size: 20px; font-weight: 800; }
+.spk.a { color: #fff; background: rgba(124,58,237,.22); border: 1px solid rgba(167,139,250,.6); }
+.spk.b { color: #062a31; background: rgba(34,211,238,.22); border: 1px solid rgba(34,211,238,.6); }
+.spk.c { color: #3a0d22; background: rgba(244,114,182,.22); border: 1px solid rgba(244,114,182,.6); }
+.utt .txt { font-size: 25px; line-height: 1.4; color: var(--ink); padding-top: 4px; }
+.export-rail { display: flex; align-items: center; gap: 14px; margin-top: 22px; }
+.export-rail .lbl { font-size: 20px; color: var(--ink-dim); font-weight: 600; }
+.exp-chip {
+  padding: 10px 20px; border-radius: 10px; font-family: var(--mono);
+  font-size: 20px; font-weight: 700; color: var(--neon);
+  background: rgba(74,222,128,.12); border: 1px solid rgba(74,222,128,.4);
+  will-change: transform, opacity;
+}
+
+/* ====================== SCENE 5 — REWRITE & TRANSLATE ==================== */
+.rewrite-stage { position: absolute; inset: 0; display: grid; place-items: center; }
+.swipe-rail { position: absolute; left: 0; top: 50%; transform: translateY(-50%); width: 100%; height: 420px; }
+.rw-card {
+  position: absolute; left: 50%; top: 50%;
+  width: 760px; height: 360px; border-radius: 22px; padding: 36px 40px;
+  display: flex; flex-direction: column; gap: 18px;
+  background: var(--panel); border: 1px solid var(--line);
+  box-shadow: 0 30px 90px rgba(0,0,0,.6); will-change: transform, opacity, filter;
+}
+.rw-card .badge {
+  align-self: flex-start; padding: 8px 20px; border-radius: 999px;
+  font-size: 24px; font-weight: 800; letter-spacing: .02em;
+}
+.rw-card .badge.raw  { color: var(--ink-dim); background: var(--panel-2); border: 1px solid var(--line); }
+.rw-card .badge.pol  { color: #062a31; background: linear-gradient(180deg, var(--cyan), #0ea5c4); box-shadow: var(--glow-cyan); }
+.rw-card .badge.pro  { color: #fff; background: linear-gradient(180deg, var(--brand-light), var(--brand)); box-shadow: var(--glow-brand); }
+.rw-card .badge.trn  { color: #3a0d22; background: linear-gradient(180deg, var(--rose), #db2777); box-shadow: var(--glow-rose); }
+.rw-card .body { font-size: 32px; line-height: 1.45; color: var(--ink); font-weight: 500; }
+.rw-card.active { border-color: rgba(167,139,250,.6); box-shadow: var(--glow-brand); }
+.lang-row { display: flex; gap: 14px; margin-top: 6px; }
+.lang-pill { padding: 8px 18px; border-radius: 10px; font-size: 22px; font-weight: 800;
+  font-family: var(--mono); color: var(--rose); background: rgba(244,114,182,.14);
+  border: 1px solid rgba(244,114,182,.45); }
+
+/* ====================== SCENE 6 — VOICE ASSISTANT ======================= */
+.assist-top {
+  position: absolute; top: 78px; left: 50%; transform: translateX(-50%);
+  display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center;
+  z-index: 5;
+}
+.assist-top .headline.sm { font-size: 72px; }
+.assist-radial { position: absolute; inset: 0; }
+.assist-radial svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.node {
+  position: absolute; transform: translate(-50%, -50%);
+  display: flex; align-items: center; gap: 16px;
+  padding: 22px 30px; border-radius: 18px;
+  background: var(--panel); border: 1px solid var(--line);
+  font-size: 28px; font-weight: 700; color: var(--ink);
+  box-shadow: 0 18px 50px rgba(0,0,0,.55);
+  will-change: transform, opacity;
+}
+.node .ic { width: 50px; height: 50px; border-radius: 12px; display: grid;
+  place-items: center; font-size: 26px; font-weight: 800; }
+.node.hub {
+  padding: 28px 38px; font-size: 34px;
+  background: radial-gradient(circle at 50% 30%, #241a3e, #130d22);
+  border-color: rgba(167,139,250,.5); box-shadow: var(--glow-brand);
+}
+.node.hub .ic { width: 60px; height: 60px; background: var(--brand);
+  color: #fff; box-shadow: var(--glow-brand); }
+.node.lit { border-color: rgba(34,211,238,.6); box-shadow: var(--glow-cyan); }
+.node.lit .ic { background: rgba(34,211,238,.18); color: var(--cyan); }
+.flow { stroke: var(--brand-light); stroke-width: 3; fill: none;
+  filter: drop-shadow(0 0 6px rgba(167,139,250,.6)); }
+.game-changer {
+  position: absolute; left: 1180px; top: 700px;
+  font-size: 34px; font-weight: 900; letter-spacing: .06em;
+  padding: .18em .55em; border-radius: 16px;
+  color: #04212b; background: linear-gradient(180deg, var(--cyan), #0ea5c4);
+  box-shadow: var(--glow-cyan); transform: rotate(-5deg); white-space: nowrap;
+}
+
+/* ====================== SCENE 7 — PRIVACY & RESILIENCE ================== */
+.sec { position: absolute; inset: 0; display: grid;
+  grid-template-columns: 1fr 1fr; align-items: center; padding: 0 200px; }
+.shield-wrap { display: grid; place-items: center; }
+.shield {
+  position: relative; width: 320px; height: 360px;
+  background: radial-gradient(circle at 50% 30%, #241a3e, #130d22);
+  border: 2px solid rgba(167,139,250,.45);
+  clip-path: polygon(50% 0, 100% 18%, 100% 60%, 50% 100%, 0 60%, 0 18%);
+  display: grid; place-items: center;
+  box-shadow: var(--glow-brand); will-change: transform, opacity;
+}
+.shield .lock { font-size: 130px; filter: drop-shadow(0 0 20px rgba(167,139,250,.6)); }
+.checks { display: flex; flex-direction: column; gap: 26px; }
+.check {
+  display: flex; align-items: center; gap: 22px; font-size: 38px; font-weight: 700; color: var(--ink);
+  will-change: transform, opacity;
+}
+.check .box { width: 56px; height: 56px; border-radius: 14px; display: grid; place-items: center;
+  background: rgba(74,222,128,.16); color: var(--neon); font-size: 32px; font-weight: 900;
+  box-shadow: var(--glow-neon); }
+.check .sub { display: block; font-size: 22px; font-weight: 500; color: var(--ink-dim); }
+
+/* ====================== SCENE 8 — CTA =================================== */
+.cta-tag {
+  font-size: 52px; font-weight: 700; color: var(--ink); text-align: center;
+  max-width: 1200px; line-height: 1.2;
+}
+.cta-tag .neon { color: var(--brand-light); text-shadow: var(--glow-brand); }
+.platform { position: absolute; left: 50%; bottom: 80px; transform: translateX(-50%);
+  font-size: 26px; letter-spacing: .28em; text-transform: uppercase; color: var(--ink-faint);
+  font-weight: 600; display: flex; align-items: center; gap: 16px; }
+.platform .sep { color: var(--brand-light); }
+
+/* Final white flash / fade overlay */
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#fade  { position: absolute; inset: 0; background: #000; opacity: 0; pointer-events: none; }

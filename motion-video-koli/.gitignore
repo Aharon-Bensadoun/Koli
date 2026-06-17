@@ -1,0 +1,5 @@
+out/
+render/node_modules/
+audio/*.mp3
+audio/*.wav
+audio/*.m4a

@@ -1,0 +1,260 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Koli — Motion</title>
+<link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+<div id="viewport">
+  <div id="stage">
+
+    <!-- Static background layers -->
+    <div class="bg-glow"></div>
+    <div class="bg-grid"></div>
+    <div class="bg-dots"></div>
+    <div class="bg-noise"></div>
+    <div class="bg-vignette"></div>
+
+    <!-- Camera (shakeable) -->
+    <div id="camera">
+
+      <!-- ============ SCENE 1 — HOOK / CHAOS ============ -->
+      <section class="scene" id="s-hook">
+        <div class="scene-inner">
+          <div class="app-chip" data-chip style="left:300px;  top:230px;">  <span class="ic">📧</span> Email</div>
+          <div class="app-chip" data-chip style="left:1390px; top:200px;">  <span class="ic">📄</span> Word</div>
+          <div class="app-chip" data-chip style="left:250px;  top:760px;">  <span class="ic">💬</span> Slack</div>
+          <div class="app-chip" data-chip style="left:1440px; top:780px;">  <span class="ic">👥</span> Teams</div>
+          <div class="app-chip" data-chip style="left:820px;  top:160px;">  <span class="ic">📝</span> Notes</div>
+          <div class="app-chip" data-chip style="left:870px;  top:880px;">  <span class="ic">🗨️</span> Chat</div>
+
+          <span class="ask" data-ask style="left:520px;  top:360px;">typing all day?</span>
+          <span class="ask" data-ask style="left:1280px; top:360px;">meeting notes?</span>
+          <span class="ask" data-ask style="left:470px;  top:660px;">too slow</span>
+          <span class="ask" data-ask style="left:1300px; top:680px;">re-type it?</span>
+          <span class="ask" data-ask style="left:900px;  top:300px;">so much typing</span>
+
+          <div class="center-stack">
+            <div class="headline" id="hook-l1">
+              <span class="word">You</span> <span class="word">speak</span> <span class="word">faster</span>
+              <br/><span class="word">than</span> <span class="word">you</span> <span class="word"><span class="capsule">type.</span></span>
+            </div>
+            <div class="headline sm" id="hook-l2" style="opacity:0;">
+              <span class="word">Notes.</span> <span class="word">Emails.</span> <span class="word">Chats.</span>
+              <br/><span class="word">Still</span> <span class="word">typed</span> <span class="word">by</span> <span class="word"><span class="capsule cyan">hand?</span></span>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ============ SCENE 2 — LOGO REVEAL ============ -->
+      <section class="scene" id="s-reveal">
+        <div class="logo-wrap">
+          <div class="logo-badge" id="logo-badge">
+            <div class="logo-ring" id="logo-ring"></div>
+            <img src="assets/logo.jpg" alt="Koli" />
+          </div>
+          <div class="brand-name" id="brand-name">Koli</div>
+          <div class="brand-sub" id="brand-sub">Voice&nbsp;to&nbsp;Text</div>
+          <div class="subline" id="reveal-tag" style="margin-top:6px;">Speak. It types itself.</div>
+        </div>
+      </section>
+
+      <!-- ============ SCENE 3 — DICTATION ============ -->
+      <section class="scene" id="s-dictation">
+        <div class="dict-stage">
+          <div class="keycap dict-key" id="f9-key">
+            <div class="cap">F9</div>
+            <div class="cap-label">press to dictate</div>
+          </div>
+
+          <div class="rec-dot" id="dict-rec"><span class="blob"></span> Recording…</div>
+          <div class="waveform" id="waveform">
+            <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+            <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+            <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+            <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+            <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+            <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+            <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+            <div class="wbar" data-wave></div><div class="wbar" data-wave></div><div class="wbar" data-wave></div>
+          </div>
+
+          <div class="app-window" id="dict-window">
+            <div class="titlebar">
+              <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
+              <span class="url">Untitled — Notes</span>
+            </div>
+            <div class="doc">
+              <div class="typed"><span id="dict-typed"></span><span class="caret" id="dict-caret"></span></div>
+            </div>
+          </div>
+
+          <div class="engine-rail">
+            <div class="engine-chip" data-engine><span class="led"></span> Whisper</div>
+            <div class="engine-chip" data-engine><span class="led"></span> gpt-4o-transcribe</div>
+            <div class="engine-chip" data-engine><span class="led"></span> gpt-realtime</div>
+            <div class="engine-chip" data-engine><span class="led"></span> Azure</div>
+            <div class="engine-chip" data-engine><span class="led"></span> On-prem</div>
+          </div>
+        </div>
+        <div class="feature-tag" data-ftag>
+          <span class="feature-num">01</span><span class="dot"></span>
+          Dictate into <span style="color:var(--brand-light)">&nbsp;any app</span>
+        </div>
+      </section>
+
+      <!-- ============ SCENE 4 — MEETING MODE (ISOMETRIC) ============ -->
+      <section class="scene" id="s-meeting">
+        <div class="iso-stage">
+          <div class="window" id="meet-window">
+            <div class="titlebar">
+              <span class="tdot r"></span><span class="tdot y"></span><span class="tdot g"></span>
+              <span class="url">Koli — Meeting</span>
+            </div>
+            <div class="meet">
+              <div class="side">
+                <div class="brandrow"><img src="assets/logo.jpg" alt=""/><span>Meeting</span></div>
+                <div class="src-toggle on" id="meet-mic"><span class="ic">🎤</span> Microphone</div>
+                <div class="src-toggle on" id="meet-sys"><span class="ic">🔊</span> System audio</div>
+                <div class="meet-stats">
+                  <div class="meet-stat" data-mstat>
+                    <div class="lbl">Speakers</div>
+                    <div class="val" data-count="3">0</div>
+                  </div>
+                  <div class="meet-stat" data-mstat>
+                    <div class="lbl">Minutes</div>
+                    <div class="val cyan" data-count="42">0</div>
+                  </div>
+                </div>
+              </div>
+              <div class="main">
+                <h3>Live transcript <span class="live"><span class="blob"></span>diarizing</span></h3>
+                <div class="transcript">
+                  <div class="utt" data-line><span class="spk a">Aharon</span><span class="txt">Let's lock the release for Friday.</span></div>
+                  <div class="utt" data-line><span class="spk b">Maya</span><span class="txt">I'll finish the meeting export today.</span></div>
+                  <div class="utt" data-line><span class="spk c">David</span><span class="txt">System audio capture is working on Teams.</span></div>
+                  <div class="utt" data-line><span class="spk a">Aharon</span><span class="txt">Great — Koli is writing it all down.</span></div>
+                </div>
+                <div class="export-rail">
+                  <span class="lbl">Export</span>
+                  <span class="exp-chip" data-exp>TXT</span>
+                  <span class="exp-chip" data-exp>MD</span>
+                  <span class="exp-chip" data-exp>JSON</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="feature-tag" data-ftag>
+          <span class="feature-num">02</span><span class="dot"></span>
+          Multi-speaker meetings, <span style="color:var(--brand-light)">&nbsp;diarized</span>
+        </div>
+      </section>
+
+      <!-- ============ SCENE 5 — REWRITE & TRANSLATE ============ -->
+      <section class="scene" id="s-rewrite">
+        <div class="rewrite-stage">
+          <div class="swipe-rail">
+            <div class="rw-card" data-rw>
+              <div class="badge raw">Raw</div>
+              <div class="body">um so yeah we need to ship the thing by friday i think</div>
+            </div>
+            <div class="rw-card" data-rw>
+              <div class="badge pol">Polished</div>
+              <div class="body">So, we need to ship this by Friday, I think.</div>
+            </div>
+            <div class="rw-card" data-rw>
+              <div class="badge pro">Professional</div>
+              <div class="body">We are targeting a Friday release for this deliverable.</div>
+            </div>
+            <div class="rw-card" data-rw>
+              <div class="badge trn">Translated</div>
+              <div class="body">Nous visons une livraison vendredi.</div>
+              <div class="lang-row">
+                <span class="lang-pill">EN</span>
+                <span class="lang-pill">FR</span>
+                <span class="lang-pill">HE</span>
+              </div>
+            </div>
+          </div>
+        </div>
+        <div class="feature-tag" data-ftag>
+          <span class="feature-num">03</span><span class="dot"></span>
+          Rewrite &amp; translate <span style="color:var(--brand-light)">&nbsp;on the fly</span>
+        </div>
+      </section>
+
+      <!-- ============ SCENE 6 — VOICE ASSISTANT (Alt Gr) ============ -->
+      <section class="scene" id="s-assistant">
+        <div class="assist-top">
+          <div class="kicker" id="assist-kicker">★ Press Alt&nbsp;Gr</div>
+          <div class="headline sm" id="assist-head">Ask it <span class="capsule">out loud</span></div>
+          <div class="subline" id="assist-sub">Spoken question — <b style="color:var(--cyan)">web-aware answer</b> typed back</div>
+        </div>
+        <div class="assist-radial">
+          <svg viewBox="0 0 1920 1080" preserveAspectRatio="none">
+            <path class="flow" data-aflow d="M960,640 L960,400" />
+            <path class="flow" data-aflow d="M960,640 L1330,510" />
+            <path class="flow" data-aflow d="M960,640 L1240,850" />
+            <path class="flow" data-aflow d="M960,640 L680,850" />
+          </svg>
+          <div class="node hub" data-ahub style="left:960px; top:640px;"><span class="ic">🪄</span> Koli · Assistant</div>
+          <div class="node" data-anode style="left:960px;  top:400px;"><span class="ic" style="background:rgba(255,77,106,.16);color:var(--danger)">🎤</span> Spoken question</div>
+          <div class="node" data-anode style="left:1330px; top:510px;"><span class="ic" style="background:rgba(167,139,250,.16);color:var(--brand-light)">✍️</span> Speech → text</div>
+          <div class="node" data-anode style="left:1240px; top:850px;"><span class="ic" style="background:rgba(34,211,238,.16);color:var(--cyan)">🔎</span> Web search</div>
+          <div class="node" data-anode style="left:680px;  top:850px;"><span class="ic" style="background:rgba(74,222,128,.16);color:var(--neon)">⌨️</span> Answer typed</div>
+        </div>
+        <div class="game-changer" id="assist-gc">⚡ HANDS&nbsp;FREE</div>
+        <div class="feature-tag" data-ftag>
+          <span class="feature-num">04</span><span class="dot"></span>
+          Voice assistant, <span style="color:var(--brand-light)">&nbsp;web-aware</span>
+        </div>
+      </section>
+
+      <!-- ============ SCENE 7 — PRIVACY & RESILIENCE ============ -->
+      <section class="scene" id="s-privacy">
+        <div class="sec">
+          <div class="shield-wrap">
+            <div class="shield" id="shield"><span class="lock">🔒</span></div>
+          </div>
+          <div class="checks">
+            <div class="check" data-check><span class="box">✓</span><span>DPAPI-encrypted keys<span class="sub">bound to your Windows account</span></span></div>
+            <div class="check" data-check><span class="box">✓</span><span>Runs on your machine<span class="sub">your audio stays local</span></span></div>
+            <div class="check" data-check><span class="box">✓</span><span>Hallucination filter<span class="sub">drops garbled Whisper output</span></span></div>
+            <div class="check" data-check><span class="box">✓</span><span>Failed-recording recovery<span class="sub">retry from History, never lose audio</span></span></div>
+          </div>
+        </div>
+        <div class="feature-tag" data-ftag>
+          <span class="feature-num">05</span><span class="dot"></span>
+          Private. Resilient. <span style="color:var(--brand-light)">&nbsp;Yours.</span>
+        </div>
+      </section>
+
+      <!-- ============ SCENE 8 — CTA / OUTRO ============ -->
+      <section class="scene" id="s-cta">
+        <div class="center-stack">
+          <div class="logo-badge" id="cta-badge" style="width:170px;height:170px;border-radius:30px;">
+            <img src="assets/logo.jpg" alt="Koli" />
+          </div>
+          <div class="brand-name" id="cta-name" style="font-size:92px;">Koli</div>
+          <div class="cta-tag" id="cta-tag">
+            Speak. <span class="neon">It types itself.</span>
+          </div>
+        </div>
+        <div class="platform" id="platform">Windows&nbsp;10 <span class="sep">|</span> 11</div>
+      </section>
+
+    </div><!-- /#camera -->
+
+    <div id="flash"></div>
+    <div id="fade"></div>
+  </div><!-- /#stage -->
+</div><!-- /#viewport -->
+
+<script src="vendor/gsap.min.js"></script>
+<script src="timeline.js"></script>
+</body>
+</html>
