@@ -18,8 +18,19 @@
     <PackageReference Include="NAudio" Version="2.2.1" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(IncludeMeeting)' != 'true'">
+    <Compile Remove="Models\MeetingTranscript.cs" />
+    <Compile Remove="Services\MeetingTranscriptionService.cs" />
+    <Compile Remove="Services\SpeakerDiarizationService.cs" />
+    <Compile Remove="Services\SystemAudioCaptureService.cs" />
+    <Compile Remove="Services\TranscriptExportService.cs" />
+  </ItemGroup>
+
   <ItemGroup>
-    <Content Include="Config\appsettings.json">
+    <Content Include="Config\appsettings.json" Condition="'$(IncludeMeeting)' == 'true'">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+    <Content Include="Config\appsettings.nomeeting.json" Link="Config\appsettings.json" Condition="'$(IncludeMeeting)' != 'true'">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </Content>
   </ItemGroup>

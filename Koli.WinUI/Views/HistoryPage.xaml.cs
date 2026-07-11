@@ -46,4 +46,22 @@ public sealed partial class HistoryPage : Page
         if (_vm != null && sender is Button { Tag: PendingAudioEntry entry })
             _vm.DeletePendingCommand.Execute(entry);
     }
+
+    private async void ClearHistory_Click(object sender, RoutedEventArgs e)
+    {
+        if (_vm == null || _vm.Entries.Count == 0)
+            return;
+
+        var dialog = new ContentDialog
+        {
+            XamlRoot = XamlRoot,
+            Title = "Clear transcription history?",
+            Content = "This permanently removes all saved transcriptions. Pending recordings are kept.",
+            PrimaryButtonText = "Clear",
+            CloseButtonText = "Cancel",
+            DefaultButton = ContentDialogButton.Close
+        };
+        if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+            _vm.ClearHistoryCommand.Execute(null);
+    }
 }

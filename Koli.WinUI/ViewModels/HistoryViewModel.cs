@@ -7,6 +7,7 @@ using Koli.Services;
 using Koli.WinUI.Services;
 using Microsoft.UI.Dispatching;
 using NAudio.Wave;
+using Windows.Storage.Pickers;
 
 namespace Koli.WinUI.ViewModels;
 
@@ -20,6 +21,7 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
     private readonly DebugLogService _debugLog;
     private readonly ToastNotificationService _toast;
     private readonly DispatcherQueue _dispatcher;
+    private readonly Func<IntPtr> _getWindowHandle;
     private bool _isRetrying;
 
     [ObservableProperty] private IReadOnlyList<TranscriptHistoryEntry> _entries = Array.Empty<TranscriptHistoryEntry>();
@@ -34,7 +36,8 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         AudioPlaybackService audioPlayback,
         DebugLogService debugLog,
         ToastNotificationService toast,
-        DispatcherQueue dispatcher)
+        DispatcherQueue dispatcher,
+        Func<IntPtr> getWindowHandle)
     {
         _settings = settings;
         _secureStore = secureStore;
@@ -44,8 +47,9 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         _debugLog = debugLog;
         _toast = toast;
         _dispatcher = dispatcher;
+        _getWindowHandle = getWindowHandle;
 
-        _history.HistoryChanged += (_, _) => Refresh();
+        _history.HistoryChanged += OnHistoryChanged;
         _audioPlayback.PlaybackEnded += OnPlaybackEnded;
         Refresh();
     }
@@ -70,6 +74,36 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
         {
             _toast.ShowError("Copy failed", ex.Message);
         }
+    }
+
+    [RelayCommand]
+    private async Task ExportHistoryAsync()
+    {
+        if (Entries.Count == 0)
+        {
+            _toast.ShowWarning("Export", "There is no transcription history to export.");
+            return;
+        }
+
+        var picker = new FileSavePicker();
+        WinRT.Interop.InitializeWithWindow.Initialize(picker, _getWindowHandle());
+        picker.FileTypeChoices.Add("Text", [".txt"]);
+        picker.SuggestedFileName = $"Koli_History_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+        var file = await picker.PickSaveFileAsync();
+        if (file == null)
+            return;
+
+        var content = new TranscriptHistoryExportService().ExportToText(Entries);
+        await File.WriteAllTextAsync(file.Path, content);
+        _toast.ShowInfo("History exported", file.Name);
+    }
+
+    [RelayCommand]
+    private void ClearHistory()
+    {
+        _history.Clear();
+        Refresh();
+        _toast.ShowInfo("History cleared", "Pending recordings were kept.");
     }
 
     [RelayCommand]
@@ -246,8 +280,11 @@ public sealed partial class HistoryViewModel : ObservableObject, IDisposable
             OnPropertyChanged(nameof(CurrentlyPlayingId));
         });
 
+    private void OnHistoryChanged(object? sender, EventArgs e) => Refresh();
+
     public void Dispose()
     {
+        _history.HistoryChanged -= OnHistoryChanged;
         _audioPlayback.PlaybackEnded -= OnPlaybackEnded;
     }
 }

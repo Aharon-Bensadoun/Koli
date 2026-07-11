@@ -54,6 +54,106 @@ public class AppDataLocationTests
     }
 }
 
+public class CustomActionsTests
+{
+    [Fact]
+    public void AppSettingsLoad_InitializesCustomActionsForLegacyConfig()
+    {
+        var path = Path.GetTempFileName();
+        try
+        {
+            File.WriteAllText(path, "{\"AzureOpenAI\":{},\"Audio\":{},\"Typing\":{},\"Rewrite\":{},\"Translation\":{},\"Assistant\":{}}");
+            var settings = AppSettings.Load(path);
+            Assert.NotNull(settings.CustomActions);
+            Assert.Empty(settings.CustomActions.Profiles);
+        }
+        finally
+        {
+            File.Delete(path);
+        }
+    }
+
+    [Fact]
+    public void CustomHotkey_RequiresModifierAndResolvesCommonKeys()
+    {
+        var invalid = new CustomHotkey { Key = "M" };
+        Assert.False(GlobalHotkeyService.TryResolveHotkey(invalid, out _, out _, out _));
+
+        var valid = new CustomHotkey { Ctrl = true, Alt = true, Key = "M" };
+        Assert.True(GlobalHotkeyService.TryResolveHotkey(valid, out _, out var key, out _));
+        Assert.NotEqual(0u, key);
+        Assert.Equal("Ctrl+Alt+M", valid.ToString());
+    }
+
+    [Fact]
+    public async Task ProcessingService_BuildsOpenAiAndAiNexusContracts()
+    {
+        var settings = new CustomActionsSettings
+        {
+            DefaultOpenAiModel = "gpt-default",
+            DefaultAiNexusProviderId = 12
+        };
+        var inline = new CustomActionProfile
+        {
+            Name = "Medical",
+            SystemPrompt = "Return JSON",
+            PromptMode = "InlineSystemPrompt"
+        };
+
+        await using var openAi = new CustomActionProcessingService(settings, "", "secret");
+        var openAiJson = openAi.BuildOpenAiBody(inline, "source text");
+        Assert.Contains("gpt-default", openAiJson);
+        Assert.Contains("Return JSON", openAiJson);
+        Assert.Contains("source text", openAiJson);
+
+        await using var nexus = new CustomActionProcessingService(settings, "https://nexus/api/AI/queryAudio", "secret");
+        var nexusJson = nexus.BuildAiNexusBody(inline, "source text");
+        Assert.Equal("https://nexus/api/ai/query", nexus.ResolveAiNexusEndpoint().TrimEnd('/'));
+        Assert.Contains("systemPrompt", nexusJson);
+        Assert.Contains("\"providerId\":12", nexusJson);
+
+        inline.PromptMode = "AiNexusPromptId";
+        inline.AiNexusPromptId = 42;
+        var promptIdJson = nexus.BuildAiNexusBody(inline, "source text");
+        Assert.Contains("\"promptId\":42", promptIdJson);
+        Assert.DoesNotContain("systemPrompt", promptIdJson);
+    }
+}
+
+public class TranscriptHistoryExportTests
+{
+    [Fact]
+    public void ExportToText_OrdersEntriesAndIncludesCustomActionSource()
+    {
+        var entries = new[]
+        {
+            new Koli.Models.TranscriptHistoryEntry
+            {
+                Timestamp = new DateTime(2026, 1, 2, 10, 0, 0, DateTimeKind.Utc),
+                Language = "fr",
+                Kind = Koli.Models.TranscriptHistoryKind.CustomAction,
+                ProfileName = "Medical",
+                SourceText = "raw report",
+                Text = "formatted report"
+            },
+            new Koli.Models.TranscriptHistoryEntry
+            {
+                Timestamp = new DateTime(2026, 1, 1, 10, 0, 0, DateTimeKind.Utc),
+                Language = "en",
+                Kind = Koli.Models.TranscriptHistoryKind.Dictation,
+                Text = "first"
+            }
+        };
+
+        var text = new TranscriptHistoryExportService().ExportToText(entries);
+        Assert.True(text.IndexOf("first", StringComparison.Ordinal) < text.IndexOf("raw report", StringComparison.Ordinal));
+        Assert.Contains("Profile: Medical", text);
+        Assert.Contains("Source:", text);
+        Assert.Contains("Result:", text);
+        Assert.Contains("formatted report", text);
+    }
+}
+
 public class InputLanguageServiceTests
 {
     [Theory]
@@ -777,5 +877,68 @@ public class AltGrToggleTrackerTests
 
         Assert.Null(tracker.ProcessKey(VkRMenu, isKeyDown: true));
         Assert.Equal(true, tracker.ProcessKey(VkRMenu, isKeyDown: false));
+    }
+}
+
+public class MsiProfileProvisioningTests
+{
+    [Fact]
+    public void Validate_RejectsInvalidEndpointAndProviderId()
+    {
+        var sid = MsiProfileProvisioning.GetCurrentUserSid();
+
+        Assert.Throws<ArgumentException>(() => MsiProfileProvisioning.Validate(new MsiProfileProvisioningRequest
+        {
+            TargetSid = sid,
+            ProfileName = "Test",
+            Endpoint = "not-a-url"
+        }));
+        Assert.Throws<ArgumentException>(() => MsiProfileProvisioning.Validate(new MsiProfileProvisioningRequest
+        {
+            TargetSid = sid,
+            ProfileName = "Test",
+            ProviderId = -1
+        }));
+    }
+
+    [Fact]
+    public async Task ImportForCurrentUser_CreatesProfileAndRemovesPlaintextRequest()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"koli-msi-{Guid.NewGuid():N}");
+        var programData = Path.Combine(root, "ProgramData");
+        var userData = Path.Combine(root, "UserData");
+        var template = Path.Combine(root, "appsettings.json");
+        Directory.CreateDirectory(root);
+        new AppSettings().Save(template);
+        var request = new MsiProfileProvisioningRequest
+        {
+            TargetSid = MsiProfileProvisioning.GetCurrentUserSid(),
+            ProfileName = "Medical",
+            ApiKey = "test-secret-key",
+            Endpoint = "https://nexus.example.com/api/AI/queryAudio",
+            ProviderId = 42,
+            Model = "custom-model"
+        };
+
+        try
+        {
+            var requestPath = MsiProfileProvisioning.WriteRequest(programData, request);
+
+            Assert.True(MsiProfileProvisioning.ImportForCurrentUser(programData, userData, template));
+            Assert.False(File.Exists(requestPath));
+            Assert.True(File.Exists(Path.Combine(userData, "Config", "profiles.json")));
+            var active = AppSettings.Load(Path.Combine(userData, "Config", "appsettings.json"));
+            Assert.Equal("https://nexus.example.com/api/AI/queryAudio", active.AzureOpenAI.Endpoint);
+            Assert.Equal(42, active.AzureOpenAI.ProviderId);
+            Assert.Equal("custom-model", active.AzureOpenAI.Model);
+            Assert.Equal("", active.AzureOpenAI.ApiKey);
+            var secureStore = new SecureSettingsStore(userData);
+            Assert.Equal("test-secret-key", await secureStore.ResolveApiKeyAsync("", CancellationToken.None));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
     }
 }

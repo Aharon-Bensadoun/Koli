@@ -673,6 +673,59 @@ Distribute the entire `…_Test/` folder. Users install the certificate once, th
 
 Builds a Windows Installer package with a **visual setup wizard** (welcome, license agreement, folder selection, confirmation). Default install location: `C:\Program Files\Koli`. User-editable configuration is written to `%LocalAppData%\Koli\Config\`, not under Program Files.
 
+#### Silent MSI provisioning
+
+The MSI accepts public `msiexec` properties to provision an API configuration for a Windows user. `KOLI_MODEL` and `KOLI_PROVIDER_ID` are optional; `KOLI_PROFILE_NAME` defaults to `Default`. Prefer a SID for managed deployments because account-name resolution depends on domain availability.
+
+Each MSI publication also produces `Install-KoliMsi.ps1` beside the installer. It provides Koli-specific command-line help and validates the common parameters before invoking Windows Installer:
+
+```powershell
+.\Install-KoliMsi.ps1 -Help
+```
+
+`msiexec /?` remains available, but only displays the generic Windows Installer help. For Koli parameters, use the wrapper's `-Help` option.
+
+Recommended wrapper usage:
+
+```powershell
+.\Install-KoliMsi.ps1 `
+  -MsiPath .\Koli_1.0.7.5_x64.msi `
+  -ApiKey "secret" `
+  -Endpoint "https://nexus.example.com/api/AI/queryAudio" `
+  -ProviderId 7 `
+  -Model "whisper-1" `
+  -ProfileName "Medical" `
+  -TargetUserSid "S-1-5-21-..."
+```
+
+The wrapper installs silently by default. Use `-Interactive` for the MSI interface, `-LogPath` for a verbose installer log, and `-OverwriteProfile` when intentionally replacing an existing profile.
+
+```powershell
+msiexec /i Koli_1.0.0.0_x64.msi /qn `
+  KOLI_API_KEY="secret" `
+  KOLI_ENDPOINT="https://nexus.example.com/api/AI/queryAudio" `
+  KOLI_PROVIDER_ID="7" `
+  KOLI_MODEL="whisper-1" `
+  KOLI_PROFILE_NAME="Medical" `
+  KOLI_TARGET_USER_SID="S-1-5-21-..."
+```
+
+Supported properties:
+
+| Property | Description |
+|---|---|
+| `KOLI_API_KEY` | API key. Hidden from MSI logs, but command lines may still be observable by privileged local processes. |
+| `KOLI_ENDPOINT` | OpenAI, Azure OpenAI, or AI Nexus transcription endpoint. |
+| `KOLI_PROVIDER_ID` | Optional non-negative AI Nexus provider ID. |
+| `KOLI_MODEL` | Optional transcription model; the packaged default is retained when omitted. |
+| `KOLI_PROFILE_NAME` | Optional user profile name; defaults to `Default`. |
+| `KOLI_TARGET_USER` | Target account as `DOMAIN\user` or a SID. Defaults to the interactive user recorded by Windows Installer. |
+| `KOLI_TARGET_USER_SID` | Preferred explicit target SID; takes precedence over `KOLI_TARGET_USER`. |
+| `KOLI_OVERWRITE_PROFILE` | Set to `1` to replace a profile with the same name for that user. |
+| `KOLI_SET_DEFAULT_PROFILE` | Set to `0` to avoid making the new profile the default. Defaults to `1`. |
+
+The elevated MSI writes an ACL-restricted request under `%ProgramData%\Koli\Provisioning`. On the target user's first launch, Koli imports the profile into `%LocalAppData%\Koli\Config\Profiles`, encrypts the key with DPAPI `CurrentUser`, activates the profile, and deletes the plaintext request. MSI upgrades do not overwrite an existing profile unless `KOLI_OVERWRITE_PROFILE=1` is supplied.
+
 **Prerequisite** — install [WiX Toolset](https://wixtoolset.org/) CLI **5.x** (once per machine):
 
 ```powershell
@@ -799,6 +852,24 @@ The OpenAI Realtime WebSocket session is implemented directly on top of `System.
 - The encrypted secret is bound to the current Windows user account (DPAPI `CurrentUser` scope) and cannot be used on a different machine or user account.
 
 ---
+
+## Custom prompt actions
+
+Settings → **Custom prompt actions** can register multiple global shortcuts. Each profile records speech, transcribes it in automatic or fixed language mode, then sends the transcription through a profile-specific system prompt. Inline prompts work with public OpenAI and AI Nexus; AI Nexus profiles can instead reference a stored prompt ID. The transformed result is copied and typed only after processing completes, while History retains both the raw transcription and final result.
+
+Shortcuts must use at least one modifier (`Ctrl`, `Alt`, `Shift`, or `Win`) plus a non-modifier key. The existing F9 dictation and Alt Gr assistant shortcuts remain separate.
+
+## Build without Meeting
+
+Meeting is included by default. To produce an enterprise package without Meeting code, navigation, or configuration, pass `-WithoutMeeting` to the existing publication script:
+
+```powershell
+.\scripts\Publish-Koli.ps1 -Target Msix -WithoutMeeting
+.\scripts\Publish-Koli.ps1 -Target Msi -WithoutMeeting
+.\scripts\Publish-Koli.ps1 -Target Portable -WithoutMeeting
+```
+
+Reduced artifacts use the `_NoMeeting` suffix and keep the normal Koli application identity.
 
 ## 🗺️ Roadmap
 

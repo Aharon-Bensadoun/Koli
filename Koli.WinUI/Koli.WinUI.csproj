@@ -26,6 +26,8 @@
     <Copyright>Copyright © 2026 Aharon Bensadoun. All rights reserved.</Copyright>
     <ApplicationIcon>Assets\Koli.ico</ApplicationIcon>
     <AssemblyName>Koli</AssemblyName>
+    <KoliDefaultConfig Condition="'$(IncludeMeeting)' == 'true'">..\Koli.Core\Config\appsettings.json</KoliDefaultConfig>
+    <KoliDefaultConfig Condition="'$(IncludeMeeting)' != 'true'">..\Koli.Core\Config\appsettings.nomeeting.json</KoliDefaultConfig>
   </PropertyGroup>
 
   <!-- MSIX packaging (activated with: -p:WindowsPackageType=MSIX) -->
@@ -48,6 +50,12 @@
     <PackageReference Include="WinUIEx" Version="2.3.4" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(IncludeMeeting)' != 'true'">
+    <Compile Remove="ViewModels\MeetingViewModel.cs" />
+    <Compile Remove="Views\MeetingPage.xaml.cs" />
+    <Page Remove="Views\MeetingPage.xaml" />
+  </ItemGroup>
+
   <ItemGroup>
     <ProjectReference Include="..\Koli.Core\Koli.Core.csproj" />
     <ProjectReference Include="..\Koli.Platform\Koli.Platform.csproj" />
@@ -66,7 +74,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <None Include="..\Koli.Core\Config\appsettings.json" Link="Config\appsettings.json">
+    <None Include="$(KoliDefaultConfig)" Link="Config\appsettings.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
       <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
     </None>
@@ -74,7 +82,7 @@
 
   <Target Name="CopyKoliContentToPublishDir" AfterTargets="Publish">
     <MakeDir Directories="$(PublishDir)Config;$(PublishDir)Assets" />
-    <Copy SourceFiles="..\Koli.Core\Config\appsettings.json" DestinationFolder="$(PublishDir)Config\" SkipUnchangedFiles="true" />
+    <Copy SourceFiles="$(KoliDefaultConfig)" DestinationFiles="$(PublishDir)Config\appsettings.json" SkipUnchangedFiles="true" />
     <Copy SourceFiles="Assets\Koli.ico;Assets\Koli.jpg" DestinationFolder="$(PublishDir)Assets\" SkipUnchangedFiles="true" />
   </Target>
 

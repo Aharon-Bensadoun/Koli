@@ -129,7 +129,7 @@
                         <FontIcon Glyph="&#xE823;"/>
                     </NavigationViewItem.Icon>
                 </NavigationViewItem>
-                <NavigationViewItem Content="Meeting" Tag="Meeting">
+                <NavigationViewItem x:Name="MeetingNavigationItem" Content="Meeting" Tag="Meeting">
                     <NavigationViewItem.Icon>
                         <FontIcon Glyph="&#xE8F2;"/>
                     </NavigationViewItem.Icon>

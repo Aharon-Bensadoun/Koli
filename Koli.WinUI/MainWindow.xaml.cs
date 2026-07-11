@@ -21,6 +21,9 @@ public sealed partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+#if !KOLI_MEETING
+        NavView.MenuItems.Remove(MeetingNavigationItem);
+#endif
         Title = "Koli";
         SystemBackdrop = new MicaBackdrop { Kind = Microsoft.UI.Composition.SystemBackdrops.MicaKind.BaseAlt };
 
@@ -41,7 +44,14 @@ public sealed partial class MainWindow : Window
 
         var hwnd = WindowNative.GetWindowHandle(this);
         AppServices.Current.Hotkeys.HotkeyPressed += OnHotkeyPressed;
+        AppServices.Current.Hotkeys.CustomHotkeyPressed += OnCustomHotkeyPressed;
         AppServices.Current.Hotkeys.Register(hwnd);
+        AppServices.Current.Hotkeys.RegisterCustomHotkeys(
+            AppServices.Current.Settings.CustomActions.Enabled
+                ? GetCompatibleCustomProfiles()
+                : []);
+        if (AppServices.Current.Hotkeys.CustomHotkeyErrors.Count > 0)
+            AppServices.Current.Toast.ShowWarning("Custom shortcuts", "One or more profile shortcuts could not be registered. Review them in Settings.");
         if (AppServices.Current.Hotkeys.AssistantHotkeyRegistrationFailed)
             AppServices.Current.Toast.ShowWarning("Hotkey", "Alt Gr assistant could not be activated. Restart Koli or check for keyboard hook conflicts.");
 
@@ -58,6 +68,14 @@ public sealed partial class MainWindow : Window
     }
 
     public IntPtr WindowHandle => WindowNative.GetWindowHandle(this);
+
+    private static IEnumerable<Koli.Config.CustomActionProfile> GetCompatibleCustomProfiles()
+    {
+        var settings = AppServices.Current.Settings;
+        var isAiNexus = Koli.Services.OpenAiModelProfiles.IsOnPremiseStyleEndpoint(settings.AzureOpenAI.Endpoint);
+        return settings.CustomActions.Profiles.Where(profile =>
+            isAiNexus || !profile.PromptMode.Equals("AiNexusPromptId", StringComparison.OrdinalIgnoreCase));
+    }
 
     private void ConfigureTitleBarButtons()
     {
@@ -115,7 +133,9 @@ public sealed partial class MainWindow : Window
         Type pageType = tag switch
         {
             "History" => typeof(HistoryPage),
+#if KOLI_MEETING
             "Meeting" => typeof(MeetingPage),
+#endif
             "Debug" => typeof(DebugPage),
             "Settings" => typeof(SettingsPage),
             _ => typeof(HomePage)
@@ -147,6 +167,13 @@ public sealed partial class MainWindow : Window
                     break;
             }
         });
+    }
+
+    private void OnCustomHotkeyPressed(object? sender, Guid profileId)
+    {
+        var dispatcher = AppServices.Current.Get<WindowContext>().DispatcherQueue;
+        dispatcher.TryEnqueue(async () =>
+            await AppServices.Current.GetViewModel<HomeViewModel>().ToggleCustomActionRecordingAsync(profileId));
     }
 
     private void AppWindow_Closing(AppWindow sender, AppWindowClosingEventArgs args)
@@ -181,6 +208,7 @@ public sealed partial class MainWindow : Window
             _homeViewModel.PropertyChanged -= HomeViewModel_PropertyChanged;
         AppServices.Current.Hotkeys.Unregister();
         AppServices.Current.Hotkeys.HotkeyPressed -= OnHotkeyPressed;
+        AppServices.Current.Hotkeys.CustomHotkeyPressed -= OnCustomHotkeyPressed;
         AppServices.Current.InputLanguage.StopMonitoring();
         AppServices.Current.History.Save();
         AppServices.Current.GetViewModel<ViewModels.HomeViewModel>().Dispose();

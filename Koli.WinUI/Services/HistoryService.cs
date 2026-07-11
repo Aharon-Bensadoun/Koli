@@ -19,7 +19,12 @@ public sealed class HistoryService
 
     public event EventHandler? HistoryChanged;
 
-    public void Add(string text, string language)
+    public void Add(
+        string text,
+        string language,
+        TranscriptHistoryKind kind = TranscriptHistoryKind.Dictation,
+        string? profileName = null,
+        string? sourceText = null)
     {
         if (string.IsNullOrWhiteSpace(text))
             return;
@@ -28,13 +33,16 @@ public sealed class HistoryService
         {
             Timestamp = DateTime.UtcNow,
             Language = language,
+            Kind = kind,
+            ProfileName = profileName,
+            SourceText = sourceText,
             Text = text.Trim()
         });
 
         while (_history.Count > MaxHistoryEntries)
             _history.RemoveAt(_history.Count - 1);
 
-        Save();
+        SaveCore();
         HistoryChanged?.Invoke(this, EventArgs.Empty);
     }
 
@@ -66,6 +74,19 @@ public sealed class HistoryService
 
     public void Save()
     {
+        SaveCore();
+        HistoryChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Clear()
+    {
+        _history.Clear();
+        SaveCore();
+        HistoryChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    private void SaveCore()
+    {
         try
         {
             var dir = Path.GetDirectoryName(_historyPath);
@@ -74,7 +95,6 @@ public sealed class HistoryService
 
             var json = JsonSerializer.Serialize(_history, new JsonSerializerOptions { WriteIndented = false });
             File.WriteAllText(_historyPath, json);
-            HistoryChanged?.Invoke(this, EventArgs.Empty);
         }
         catch
         {

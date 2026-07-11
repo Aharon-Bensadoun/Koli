@@ -35,7 +35,8 @@ param(
     [switch]$NoBump,
     [ValidateSet('Msix', 'Msi', 'Portable')]
     [string]$Target = 'Msix',
-    [switch]$Unpackaged
+    [switch]$Unpackaged,
+    [switch]$WithoutMeeting
 )
 
 $ErrorActionPreference = 'Stop'
@@ -44,10 +45,12 @@ $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $PropsPath = Join-Path $RepoRoot 'Directory.Build.props'
 $ManifestPath = Join-Path $RepoRoot 'Koli.WinUI\Package.appxmanifest'
 $ProjectPath = Join-Path $RepoRoot 'Koli.WinUI\Koli.WinUI.csproj'
+$ConfiguratorProjectPath = Join-Path $RepoRoot 'Koli.Configurator\Koli.Configurator.csproj'
 $DistPath = Join-Path $RepoRoot 'Koli.WinUI\dist'
 $InstallerDir = Join-Path $RepoRoot 'scripts\installer'
 $InstallerWxsPath = Join-Path $InstallerDir 'Koli.wxs'
 $LicenseRtfPath = Join-Path $InstallerDir 'license.rtf'
+$ArtifactSuffix = if ($WithoutMeeting) { '_NoMeeting' } else { '' }
 
 if ($Unpackaged) {
     if ($PSBoundParameters.ContainsKey('Target') -and $Target -ne 'Msix') {
@@ -204,7 +207,7 @@ function New-KoliPortableZip {
 
     New-Item -ItemType Directory -Path $DistPath -Force | Out-Null
 
-    $zipName = "Koli_${AppVersion}_x64_portable.zip"
+    $zipName = "Koli_${AppVersion}_x64_portable${ArtifactSuffix}.zip"
     $zipPath = Join-Path $DistPath $zipName
     if (Test-Path $zipPath) {
         Remove-Item -Path $zipPath -Force
@@ -225,7 +228,7 @@ function New-KoliMsi {
 
     New-Item -ItemType Directory -Path $DistPath -Force | Out-Null
 
-    $msiName = "Koli_${AppVersion}_x64.msi"
+    $msiName = "Koli_${AppVersion}_x64${ArtifactSuffix}.msi"
     $msiPath = Join-Path $DistPath $msiName
     if (Test-Path $msiPath) {
         Remove-Item -Path $msiPath -Force
@@ -247,6 +250,9 @@ function New-KoliMsi {
     if ($LASTEXITCODE -ne 0) {
         exit $LASTEXITCODE
     }
+
+    Copy-Item -LiteralPath (Join-Path $InstallerDir 'Install-KoliMsi.ps1') `
+        -Destination (Join-Path $DistPath 'Install-KoliMsi.ps1') -Force
 
     return $msiPath
 }
@@ -277,7 +283,8 @@ $publishArgs = @(
     'publish',
     $ProjectPath,
     '-c', 'Release',
-    '-r', 'win-x64'
+    '-r', 'win-x64',
+    "-p:IncludeMeeting=$((-not $WithoutMeeting).ToString().ToLowerInvariant())"
 )
 
 if ($Target -eq 'Msix') {
@@ -285,10 +292,29 @@ if ($Target -eq 'Msix') {
 }
 
 Write-Host "Target: $Target"
+Write-Host "Meeting feature: $(-not $WithoutMeeting)"
 Write-Host "Running: dotnet $($publishArgs -join ' ')"
 & dotnet @publishArgs
 if ($LASTEXITCODE -ne 0) {
     exit $LASTEXITCODE
+}
+
+if ($Target -eq 'Msi') {
+    $publishDir = Get-KoliPublishDir
+    $configuratorArgs = @(
+        'publish',
+        $ConfiguratorProjectPath,
+        '-c', 'Release',
+        '-r', 'win-x64',
+        '--self-contained', 'false',
+        '-o', $publishDir,
+        "-p:IncludeMeeting=$((-not $WithoutMeeting).ToString().ToLowerInvariant())"
+    )
+    Write-Host "Running: dotnet $($configuratorArgs -join ' ')"
+    & dotnet @configuratorArgs
+    if ($LASTEXITCODE -ne 0) {
+        exit $LASTEXITCODE
+    }
 }
 
 switch ($Target) {
@@ -302,8 +328,16 @@ switch ($Target) {
         if ($packageDir) {
             Write-Host ""
             Write-Host "MSIX package folder: $($packageDir.FullName)"
+            New-Item -ItemType Directory -Path $DistPath -Force | Out-Null
             Get-ChildItem -Path $packageDir.FullName -Filter '*.msix' | ForEach-Object {
-                Write-Host "  $($_.Name)"
+                $destinationName = if ($WithoutMeeting) {
+                    "Koli_${targetVersion}_x64_NoMeeting.msix"
+                } else {
+                    $_.Name
+                }
+                $destination = Join-Path $DistPath $destinationName
+                Copy-Item -LiteralPath $_.FullName -Destination $destination -Force
+                Write-Host "  $destinationName"
             }
         }
     }

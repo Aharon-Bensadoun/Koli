@@ -54,6 +54,7 @@ public partial class App : Application
         var isPackaged = IsPackagedApp();
         var dataDirectory = AppDataLocation.ResolveDataDirectory(installDirectory, isPackaged);
         var configPath = Path.Combine(dataDirectory, "Config", "appsettings.json");
+        ImportMsiProvisioningIfPresent(dataDirectory, installDirectory);
         EnsureConfigFile(configPath, installDirectory);
 
         AppSettings settings;
@@ -137,6 +138,29 @@ public partial class App : Application
 
         Directory.CreateDirectory(Path.GetDirectoryName(configPath)!);
         File.Copy(sourceConfigPath, configPath, overwrite: true);
+    }
+
+    private static void ImportMsiProvisioningIfPresent(string dataDirectory, string installDirectory)
+    {
+        if (!AppDataLocation.IsInstalledUnderProgramFiles(installDirectory))
+            return;
+
+        var templateConfigPath = Path.Combine(installDirectory, "Config", "appsettings.json");
+        if (!File.Exists(templateConfigPath))
+            return;
+
+        try
+        {
+            var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            MsiProfileProvisioning.ImportForCurrentUser(programData, dataDirectory, templateConfigPath);
+        }
+        catch (Exception ex)
+        {
+            var logDirectory = Path.Combine(dataDirectory, "Config");
+            Directory.CreateDirectory(logDirectory);
+            File.AppendAllText(Path.Combine(logDirectory, "startup-error.log"),
+                $"[{DateTime.Now:O}] MSI provisioning: {ex}{Environment.NewLine}");
+        }
     }
 
     private static bool IsPackagedApp()

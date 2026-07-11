@@ -1,5 +1,6 @@
 using System.Runtime.InteropServices;
-using System.Windows.Forms;
+using System.Windows.Forms;
+using Koli.Config;
 
 namespace Koli.Platform;
 
@@ -15,8 +16,14 @@ public sealed class GlobalHotkeyService : IDisposable
 {
     private const int HotkeyToggleRecording = 9000;
     private const int HotkeyCancelRecording = 9001;
-    private const int HotkeyTogglePause = 9002;
-    private const uint ModNone = 0x0000;
+    private const int HotkeyTogglePause = 9002;
+    private const int CustomHotkeyStart = 9100;
+    private const uint ModNone = 0x0000;
+    private const uint ModAlt = 0x0001;
+    private const uint ModControl = 0x0002;
+    private const uint ModShift = 0x0004;
+    private const uint ModWin = 0x0008;
+    private const uint ModNoRepeat = 0x4000;
     private const uint VkF9 = 0x78;
     private const uint VkF7 = 0x76;
     private const uint VkF6 = 0x75;
@@ -33,12 +40,16 @@ public sealed class GlobalHotkeyService : IDisposable
 
     private IntPtr _keyboardHook;
     private HookProc? _keyboardHookProc;
-    private readonly AltGrToggleTracker _altGrTracker = new();
+    private readonly AltGrToggleTracker _altGrTracker = new();
+    private readonly Dictionary<int, Guid> _customHotkeys = new();
 
     public bool RegistrationFailed { get; private set; }
     public bool AssistantHotkeyRegistrationFailed { get; private set; }
 
-    public event EventHandler<HotkeyAction>? HotkeyPressed;
+    public event EventHandler<HotkeyAction>? HotkeyPressed;
+    public event EventHandler<Guid>? CustomHotkeyPressed;
+
+    public IReadOnlyDictionary<Guid, string> CustomHotkeyErrors { get; private set; } = new Dictionary<Guid, string>();
 
     public void Register(IntPtr hwnd)
     {
@@ -58,8 +69,39 @@ public sealed class GlobalHotkeyService : IDisposable
 
         _subclass = new WindowMessageSubclass(hwnd, OnWindowMessage);
         _ = _subclass.Attach();
-        _registered = true;
-    }
+        _registered = true;
+    }
+
+    public void RegisterCustomHotkeys(IEnumerable<CustomActionProfile> profiles)
+    {
+        UnregisterCustomHotkeys();
+        var errors = new Dictionary<Guid, string>();
+        if (!_registered || _hwnd == IntPtr.Zero)
+        {
+            CustomHotkeyErrors = errors;
+            return;
+        }
+
+        var id = CustomHotkeyStart;
+        foreach (var profile in profiles.Where(profile => profile.Enabled))
+        {
+            if (!TryResolveHotkey(profile.Hotkey, out var modifiers, out var virtualKey, out var error))
+            {
+                errors[profile.Id] = error;
+                continue;
+            }
+
+            if (!RegisterHotKey(_hwnd, id, modifiers | ModNoRepeat, virtualKey))
+            {
+                errors[profile.Id] = "This shortcut is already used by Windows or another application.";
+                continue;
+            }
+
+            _customHotkeys[id] = profile.Id;
+            id++;
+        }
+        CustomHotkeyErrors = errors;
+    }
 
     public void Unregister()
     {
@@ -69,7 +111,8 @@ public sealed class GlobalHotkeyService : IDisposable
         _subclass?.Detach();
         _subclass = null;
 
-        UninstallAltGrHook();
+        UninstallAltGrHook();
+        UnregisterCustomHotkeys();
 
         if (_hwnd != IntPtr.Zero)
         {
@@ -126,17 +169,55 @@ public sealed class GlobalHotkeyService : IDisposable
         if (m.Msg != WM_HOTKEY)
             return;
 
-        var action = m.WParam.ToInt32() switch
+        var action = m.WParam.ToInt32() switch
         {
             HotkeyToggleRecording => HotkeyAction.ToggleRecording,
             HotkeyCancelRecording => HotkeyAction.CancelRecording,
             HotkeyTogglePause => HotkeyAction.TogglePause,
             _ => (HotkeyAction?)null
-        };
-
-        if (action.HasValue)
-            HotkeyPressed?.Invoke(this, action.Value);
-    }
+        };
+
+        if (action.HasValue)
+            HotkeyPressed?.Invoke(this, action.Value);
+        else if (_customHotkeys.TryGetValue(m.WParam.ToInt32(), out var profileId))
+            CustomHotkeyPressed?.Invoke(this, profileId);
+    }
+
+    private void UnregisterCustomHotkeys()
+    {
+        if (_hwnd != IntPtr.Zero)
+        {
+            foreach (var id in _customHotkeys.Keys)
+                UnregisterHotKey(_hwnd, id);
+        }
+        _customHotkeys.Clear();
+    }
+
+    public static bool TryResolveHotkey(CustomHotkey hotkey, out uint modifiers, out uint virtualKey, out string error)
+    {
+        modifiers = ModNone;
+        virtualKey = 0;
+        error = "";
+        if (!(hotkey.Ctrl || hotkey.Alt || hotkey.Shift || hotkey.Win))
+        {
+            error = "Select at least one modifier key.";
+            return false;
+        }
+
+        if (hotkey.Ctrl) modifiers |= ModControl;
+        if (hotkey.Alt) modifiers |= ModAlt;
+        if (hotkey.Shift) modifiers |= ModShift;
+        if (hotkey.Win) modifiers |= ModWin;
+
+        var key = hotkey.Key.Trim();
+        if (!Enum.TryParse<Keys>(key, true, out var parsed) || parsed is Keys.ControlKey or Keys.Menu or Keys.ShiftKey or Keys.LWin or Keys.RWin)
+        {
+            error = "Enter a valid non-modifier key, such as M, 8, Space or F10.";
+            return false;
+        }
+        virtualKey = (uint)parsed;
+        return true;
+    }
 
     public void Dispose() => Unregister();
 

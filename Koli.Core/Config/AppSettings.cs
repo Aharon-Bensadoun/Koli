@@ -10,9 +10,12 @@ public sealed class AppSettings
     public AudioSettings Audio { get; set; } = new();
     public TypingSettings Typing { get; set; } = new();
     public RewriteSettings Rewrite { get; set; } = new();
+#if KOLI_MEETING
     public MeetingSettings Meeting { get; set; } = new();
+#endif
     public TranslationSettings Translation { get; set; } = new();
     public AssistantSettings Assistant { get; set; } = new();
+    public CustomActionsSettings CustomActions { get; set; } = new();
 
     public static AppSettings Load(string path)
     {
@@ -37,9 +40,19 @@ public sealed class AppSettings
         settings.Audio ??= new AudioSettings();
         settings.Typing ??= new TypingSettings();
         settings.Rewrite ??= new RewriteSettings();
+#if KOLI_MEETING
         settings.Meeting ??= new MeetingSettings();
+#endif
         settings.Translation ??= new TranslationSettings();
         settings.Assistant ??= new AssistantSettings();
+        settings.CustomActions ??= new CustomActionsSettings();
+        settings.CustomActions.Profiles ??= [];
+        foreach (var profile in settings.CustomActions.Profiles)
+        {
+            profile.Hotkey ??= new CustomHotkey();
+            if (profile.Id == Guid.Empty)
+                profile.Id = Guid.NewGuid();
+        }
 
         TranscriptionOutputLanguageService.MigrateTranslationSettings(settings.Translation);
         TranscriptionOutputLanguageService.SyncLegacyEnabledFlag(settings.Translation);
@@ -176,6 +189,7 @@ public sealed class RewriteSettings
     }
 }
 
+#if KOLI_MEETING
 public sealed class MeetingSettings
 {
     public string DefaultAudioSource { get; set; } = "Microphone"; // "Microphone" or "SystemAudio"
@@ -183,6 +197,7 @@ public sealed class MeetingSettings
     public string TranscriptSavePath { get; set; } = "Meetings";
     public bool AutoSaveTranscript { get; set; } = true;
 }
+#endif
 
 /// <summary>
 /// Output language settings (UI: "Output language"). For OpenAI/Azure endpoints the app
@@ -234,4 +249,64 @@ public sealed class AssistantSettings
         "Réponds dans la langue de la question. " +
         "Si l'information est introuvable ou incertaine, réponds uniquement « Je ne sais pas. » ou « Je n'ai pas trouvé de réponse. » " +
         "N'inclus aucune citation, URL, lien ou source dans le texte.";
+}
+
+public sealed class CustomActionsSettings
+{
+    public bool Enabled { get; set; }
+    public string DefaultOpenAiModel { get; set; } = "gpt-4.1";
+    public int? DefaultAiNexusProviderId { get; set; }
+    public List<CustomActionProfile> Profiles { get; set; } = [];
+}
+
+public sealed class CustomActionProfile
+{
+    public Guid Id { get; set; } = Guid.NewGuid();
+    public string Name { get; set; } = "New action";
+    public bool Enabled { get; set; } = true;
+    public CustomHotkey Hotkey { get; set; } = new();
+    public string LanguageMode { get; set; } = "Auto";
+    public string Language { get; set; } = "en";
+    public string PromptMode { get; set; } = "InlineSystemPrompt";
+    public string SystemPrompt { get; set; } = "";
+    public int? AiNexusPromptId { get; set; }
+    public string? OpenAiModel { get; set; }
+    public int? AiNexusProviderId { get; set; }
+
+    public CustomActionProfile Copy() => new()
+    {
+        Id = Id,
+        Name = Name,
+        Enabled = Enabled,
+        Hotkey = Hotkey.Copy(),
+        LanguageMode = LanguageMode,
+        Language = Language,
+        PromptMode = PromptMode,
+        SystemPrompt = SystemPrompt,
+        AiNexusPromptId = AiNexusPromptId,
+        OpenAiModel = OpenAiModel,
+        AiNexusProviderId = AiNexusProviderId
+    };
+}
+
+public sealed class CustomHotkey
+{
+    public bool Ctrl { get; set; }
+    public bool Alt { get; set; }
+    public bool Shift { get; set; }
+    public bool Win { get; set; }
+    public string Key { get; set; } = "";
+
+    public CustomHotkey Copy() => new() { Ctrl = Ctrl, Alt = Alt, Shift = Shift, Win = Win, Key = Key };
+
+    public override string ToString()
+    {
+        var parts = new List<string>();
+        if (Ctrl) parts.Add("Ctrl");
+        if (Alt) parts.Add("Alt");
+        if (Shift) parts.Add("Shift");
+        if (Win) parts.Add("Win");
+        if (!string.IsNullOrWhiteSpace(Key)) parts.Add(Key.Trim().ToUpperInvariant());
+        return string.Join("+", parts);
+    }
 }

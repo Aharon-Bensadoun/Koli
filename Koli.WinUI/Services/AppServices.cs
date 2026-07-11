@@ -206,7 +206,9 @@ public static class ServiceCollectionExtensions
 
         services.AddTransient<HistoryViewModel>();
 
+#if KOLI_MEETING
         services.AddTransient<MeetingViewModel>();
+#endif
 
         services.AddTransient<DebugViewModel>();
 

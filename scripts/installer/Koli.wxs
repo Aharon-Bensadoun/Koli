@@ -13,6 +13,16 @@
                   AllowSameVersionUpgrades="yes" />
     <MediaTemplate EmbedCab="yes" />
 
+    <Property Id="KOLI_API_KEY" Hidden="yes" Secure="yes" />
+    <Property Id="KOLI_ENDPOINT" Secure="yes" />
+    <Property Id="KOLI_PROVIDER_ID" Secure="yes" />
+    <Property Id="KOLI_MODEL" Secure="yes" />
+    <Property Id="KOLI_PROFILE_NAME" Secure="yes" />
+    <Property Id="KOLI_TARGET_USER" Secure="yes" />
+    <Property Id="KOLI_TARGET_USER_SID" Secure="yes" />
+    <Property Id="KOLI_OVERWRITE_PROFILE" Value="0" Secure="yes" />
+    <Property Id="KOLI_SET_DEFAULT_PROFILE" Value="1" Secure="yes" />
+
     <StandardDirectory Id="ProgramFiles6432Folder">
       <Directory Id="INSTALLFOLDER" Name="Koli" />
     </StandardDirectory>
@@ -28,6 +38,24 @@
     </Feature>
 
     <ui:WixUI Id="WixUI_InstallDir" InstallDirectory="INSTALLFOLDER" />
+
+    <SetProperty Id="ProvisionKoliProfile"
+                 Value="&quot;[INSTALLFOLDER]Koli.Configurator.exe&quot; --target-sid &quot;[KOLI_TARGET_USER_SID]&quot; --target-user &quot;[KOLI_TARGET_USER]&quot; --fallback-user &quot;[LogonUser]&quot; --profile-name &quot;[KOLI_PROFILE_NAME]&quot; --api-key &quot;[KOLI_API_KEY]&quot; --endpoint &quot;[KOLI_ENDPOINT]&quot; --provider-id &quot;[KOLI_PROVIDER_ID]&quot; --model &quot;[KOLI_MODEL]&quot; --overwrite-profile &quot;[KOLI_OVERWRITE_PROFILE]&quot; --set-default-profile &quot;[KOLI_SET_DEFAULT_PROFILE]&quot;"
+                 Before="ProvisionKoliProfile"
+                 Sequence="execute"
+                 Condition="KOLI_API_KEY &lt;&gt; &quot;&quot; OR KOLI_ENDPOINT &lt;&gt; &quot;&quot; OR KOLI_PROVIDER_ID &lt;&gt; &quot;&quot; OR KOLI_MODEL &lt;&gt; &quot;&quot; OR KOLI_PROFILE_NAME &lt;&gt; &quot;&quot;" />
+    <CustomAction Id="ProvisionKoliProfile"
+                  Directory="INSTALLFOLDER"
+                  ExeCommand="[CustomActionData]"
+                  Execute="deferred"
+                  Impersonate="no"
+                  HideTarget="yes"
+                  Return="check" />
+    <InstallExecuteSequence>
+      <Custom Action="ProvisionKoliProfile"
+              After="InstallFiles"
+              Condition="KOLI_API_KEY &lt;&gt; &quot;&quot; OR KOLI_ENDPOINT &lt;&gt; &quot;&quot; OR KOLI_PROVIDER_ID &lt;&gt; &quot;&quot; OR KOLI_MODEL &lt;&gt; &quot;&quot; OR KOLI_PROFILE_NAME &lt;&gt; &quot;&quot;" />
+    </InstallExecuteSequence>
 
     <Component Id="StartMenuShortcut" Directory="ApplicationProgramsFolder" Guid="B8E4F2A1-3C5D-4E6F-9A0B-1C2D3E4F5A6B">
       <Shortcut Id="KoliStartMenuShortcut"

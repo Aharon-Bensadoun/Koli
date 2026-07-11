@@ -6,6 +6,7 @@ using Koli.Services;
 using Koli.WinUI.Dialogs;
 using Koli.WinUI.Services;
 using Microsoft.UI.Xaml.Controls;
+using System.Collections.ObjectModel;
 
 namespace Koli.WinUI.ViewModels;
 
@@ -17,6 +18,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly ToastNotificationService _toast;
     private readonly InputLanguageService _inputLanguage;
     private readonly StartupTaskService _startupTask;
+    private readonly GlobalHotkeyService _hotkeys;
     private bool _loadingLaunchAtStartup;
 
     [ObservableProperty] private string _aboutText = "";
@@ -38,6 +40,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _assistantEnabled = true;
     [ObservableProperty] private bool _assistantWebSearchEnabled = true;
     [ObservableProperty] private string _assistantModel = "gpt-4.1";
+    [ObservableProperty] private bool _customActionsEnabled;
+    [ObservableProperty] private string _customActionsDefaultModel = "gpt-4.1";
+    [ObservableProperty] private string _customActionsDefaultProviderId = "";
+    public ObservableCollection<CustomActionProfile> CustomActionProfiles { get; } = [];
 
     public IReadOnlyList<string> RewriteLevels { get; } =
         ["Casual", "Polished", "Professional", "Formal", "Executive"];
@@ -50,7 +56,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<LanguagePickerItem> TargetLanguageOptions { get; private set; } = [];
 
-    public SettingsViewModel(AppSettings settings, SecureSettingsStore secureStore, IAppPaths paths, ToastNotificationService toast, InputLanguageService inputLanguage, StartupTaskService startupTask)
+    public SettingsViewModel(AppSettings settings, SecureSettingsStore secureStore, IAppPaths paths, ToastNotificationService toast, InputLanguageService inputLanguage, StartupTaskService startupTask, GlobalHotkeyService hotkeys)
     {
         _settings = settings;
         _secureStore = secureStore;
@@ -58,6 +64,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _toast = toast;
         _inputLanguage = inputLanguage;
         _startupTask = startupTask;
+        _hotkeys = hotkeys;
         LoadFromSettings();
         _ = LoadLaunchAtStartupAsync();
         AboutText = $"{AppInfo.ProductName} {AppInfo.Version}\n{AppInfo.Description}\n\n{AppInfo.DeveloperName}\n{AppInfo.ContactEmail}\n{AppInfo.RepositoryUrl}\n\n{AppInfo.Copyright}";
@@ -124,6 +131,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         AssistantModel = string.IsNullOrWhiteSpace(_settings.Assistant.Model)
             ? "gpt-4.1"
             : _settings.Assistant.Model.Trim();
+        CustomActionsEnabled = _settings.CustomActions.Enabled;
+        CustomActionsDefaultModel = _settings.CustomActions.DefaultOpenAiModel;
+        CustomActionsDefaultProviderId = _settings.CustomActions.DefaultAiNexusProviderId?.ToString() ?? "";
+        CustomActionProfiles.Clear();
+        foreach (var profile in _settings.CustomActions.Profiles)
+            CustomActionProfiles.Add(profile.Copy());
         RefreshTargetLanguageOptions();
         SelectedOutputLanguageMode = OutputLanguageModes.FirstOrDefault(m =>
             m.Value.Equals(OutputLanguageMode, StringComparison.OrdinalIgnoreCase))
@@ -177,9 +190,43 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.Assistant.Enabled = AssistantEnabled;
         _settings.Assistant.WebSearchEnabled = AssistantWebSearchEnabled;
         _settings.Assistant.Model = string.IsNullOrWhiteSpace(AssistantModel) ? "gpt-4.1" : AssistantModel.Trim();
+        _settings.CustomActions.Enabled = CustomActionsEnabled;
+        _settings.CustomActions.DefaultOpenAiModel = string.IsNullOrWhiteSpace(CustomActionsDefaultModel) ? "gpt-4.1" : CustomActionsDefaultModel.Trim();
+        _settings.CustomActions.DefaultAiNexusProviderId = int.TryParse(CustomActionsDefaultProviderId, out var defaultProviderId) ? defaultProviderId : null;
+        _settings.CustomActions.Profiles = CustomActionProfiles.Select(profile => profile.Copy()).ToList();
         _settings.Save(_paths.ConfigPath);
+        RegisterCompatibleCustomHotkeys();
+        if (_hotkeys.CustomHotkeyErrors.Count > 0)
+            _toast.ShowWarning("Custom shortcuts", "One or more shortcuts could not be registered. Check for duplicates or Windows conflicts.");
         _inputLanguage.StartMonitoring();
         _toast.ShowInfo("Settings", "Settings saved.");
+    }
+
+    public bool HasDuplicateHotkey(CustomActionProfile candidate) =>
+        CustomActionProfiles.Any(profile => profile.Id != candidate.Id &&
+            profile.Hotkey.ToString().Equals(candidate.Hotkey.ToString(), StringComparison.OrdinalIgnoreCase));
+
+    public void UpsertProfile(CustomActionProfile profile)
+    {
+        var existing = CustomActionProfiles.FirstOrDefault(item => item.Id == profile.Id);
+        if (existing != null)
+            CustomActionProfiles[CustomActionProfiles.IndexOf(existing)] = profile;
+        else
+            CustomActionProfiles.Add(profile);
+    }
+
+    public void DeleteProfile(CustomActionProfile profile) => CustomActionProfiles.Remove(profile);
+
+    private void RegisterCompatibleCustomHotkeys()
+    {
+        if (!_settings.CustomActions.Enabled)
+        {
+            _hotkeys.RegisterCustomHotkeys([]);
+            return;
+        }
+        var isAiNexus = OpenAiModelProfiles.IsOnPremiseStyleEndpoint(_settings.AzureOpenAI.Endpoint);
+        _hotkeys.RegisterCustomHotkeys(_settings.CustomActions.Profiles.Where(profile =>
+            isAiNexus || !profile.PromptMode.Equals("AiNexusPromptId", StringComparison.OrdinalIgnoreCase)));
     }
 
     [RelayCommand]
@@ -190,6 +237,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (MainWindowHolder.Instance?.Content.XamlRoot != null)
             dialog.XamlRoot = MainWindowHolder.Instance.Content.XamlRoot;
         if (await dialog.ShowAsync() == ContentDialogResult.Primary)
+        {
             _settings.Save(_paths.ConfigPath);
+            RegisterCompatibleCustomHotkeys();
+        }
     }
 }

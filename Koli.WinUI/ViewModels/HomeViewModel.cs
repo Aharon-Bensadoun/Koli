@@ -2,6 +2,7 @@ using System.Text;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Koli.Config;
+using Koli.Models;
 using Koli.Platform;
 using Koli.Services;
 using Koli.WinUI.Overlays;
@@ -14,7 +15,8 @@ namespace Koli.WinUI.ViewModels;
 internal enum RecordingMode
 {
     Dictation,
-    Assistant
+    Assistant,
+    CustomAction
 }
 
 public sealed partial class HomeViewModel : ObservableObject, IDisposable
@@ -39,6 +41,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     private Task? _dictationRealtimeTask;
     private bool _dictationUsedRealtime;
     private RecordingMode _recordingMode = RecordingMode.Dictation;
+    private CustomActionProfile? _activeCustomAction;
     private CancellationTokenSource? _cancellationTokenSource;
     private readonly StringBuilder _accumulatedTranscription = new();
     private DateTime _recordingStartTime = DateTime.MinValue;
@@ -148,6 +151,39 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             await StopRecordingAsync();
     }
 
+    public async Task ToggleCustomActionRecordingAsync(Guid profileId)
+    {
+        if (IsProcessing)
+            return;
+        var profile = _settings.CustomActions.Profiles.FirstOrDefault(item => item.Id == profileId);
+        if (!_settings.CustomActions.Enabled || profile is not { Enabled: true })
+        {
+            _toast.ShowWarning("Custom action", "This profile is disabled or no longer exists.");
+            return;
+        }
+        if (!OpenAiModelProfiles.IsOnPremiseStyleEndpoint(_settings.AzureOpenAI.Endpoint)
+            && profile.PromptMode.Equals("AiNexusPromptId", StringComparison.OrdinalIgnoreCase))
+        {
+            _toast.ShowError("Custom action", "This prompt ID profile requires an AI Nexus endpoint.");
+            return;
+        }
+        if (IsRecording && (_recordingMode != RecordingMode.CustomAction || _activeCustomAction?.Id != profileId))
+        {
+            _toast.ShowInfo("Koli", "Recording already in progress.");
+            return;
+        }
+
+        if (!IsRecording)
+        {
+            _activeCustomAction = profile.Copy();
+            await StartRecordingAsync(RecordingMode.CustomAction);
+        }
+        else
+        {
+            await StopRecordingAsync();
+        }
+    }
+
     [RelayCommand]
     public async Task CancelRecordingAsync()
     {
@@ -188,6 +224,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         RecordButtonGlyph = "\uE720";
         AudioLevel = 0;
         _recordingMode = RecordingMode.Dictation;
+        _activeCustomAction = null;
         _toast.ShowInfo("Koli", "Recording cancelled");
     }
 
@@ -231,7 +268,12 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             SyncInputLanguageBeforeRecording();
             RefreshLanguageChips();
 
-            StatusText = mode == RecordingMode.Assistant ? "Assistant…" : "Starting...";
+            StatusText = mode switch
+            {
+                RecordingMode.Assistant => "Assistant…",
+                RecordingMode.CustomAction => _activeCustomAction?.Name ?? "Custom action",
+                _ => "Starting..."
+            };
             IsProcessing = true;
 
             string apiKey;
@@ -282,10 +324,18 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             StatusText = mode == RecordingMode.Assistant ? "Assistant…" : "Recording";
             RecordButtonGlyph = "\uE71A";
             ShowTranscriptCard = true;
-            TranscriptTitle = mode == RecordingMode.Assistant ? "Assistant question" : "Live transcript";
-            LiveTranscript = mode == RecordingMode.Assistant
-                ? "Posez votre question, puis appuyez à nouveau sur Alt Gr."
-                : "";
+            TranscriptTitle = mode switch
+            {
+                RecordingMode.Assistant => "Assistant question",
+                RecordingMode.CustomAction => _activeCustomAction?.Name ?? "Custom action",
+                _ => "Live transcript"
+            };
+            LiveTranscript = mode switch
+            {
+                RecordingMode.Assistant => "Posez votre question, puis appuyez à nouveau sur Alt Gr.",
+                RecordingMode.CustomAction => "Speak, then press the same shortcut to process the transcription.",
+                _ => ""
+            };
 
             _recordingStartTime = DateTime.UtcNow;
             UpdateTimerLabel();
@@ -299,7 +349,13 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
                 ? CursorIndicatorState.AssistantRecording
                 : CursorIndicatorState.DictationRecording);
             UpdateTrayStatus(isRecording: true);
-            _toast.ShowInfo("Koli", mode == RecordingMode.Assistant ? "Assistant recording started — press Alt Gr again to stop" : "Recording started");
+            var startedMessage = mode switch
+            {
+                RecordingMode.Assistant => "Assistant recording started — press Alt Gr again to stop",
+                RecordingMode.CustomAction => $"{_activeCustomAction?.Name} recording started — press the shortcut again to stop",
+                _ => "Recording started"
+            };
+            _toast.ShowInfo("Koli", startedMessage);
         }
         catch (Exception ex)
         {
@@ -349,6 +405,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         _cancellationTokenSource = null;
 
         var isAssistant = _recordingMode == RecordingMode.Assistant;
+        var isCustomAction = _recordingMode == RecordingMode.CustomAction;
         StatusText = isAssistant ? "Assistant…" : "Transcribing...";
         var progressMessage = isAssistant
             ? "Transcription in progress"
@@ -398,7 +455,11 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
                 try
                 {
-                    _speechToText = new SpeechToTextService(_settings.AzureOpenAI, apiKey, _settings.Translation);
+                    var transcriptionSettings = isCustomAction
+                        ? CreateCustomActionTranscriptionSettings(_activeCustomAction!)
+                        : _settings.AzureOpenAI;
+                    var transcriptionOutput = isCustomAction ? new TranslationSettings() : _settings.Translation;
+                    _speechToText = new SpeechToTextService(transcriptionSettings, apiKey, transcriptionOutput);
                     _speechToText.TranscriptionReceived += OnTranscriptionReceived;
                     _speechToText.ErrorLogging += OnErrorLogging;
                     _speechToText.ErrorLogging += failureSniffer;
@@ -432,6 +493,10 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
                 if (await ProcessAssistantStopAsync(apiKey, collectedAudio, lastTranscriptionError))
                     savedAsPending = true;
             }
+            else if (isCustomAction)
+            {
+                await ProcessCustomActionStopAsync(apiKey);
+            }
             else
             {
                 await ApplyTranslationAsync(apiKey, _speechToText?.OutputAlreadyApplied == true || _dictationRealtimeStt?.OutputAlreadyApplied == true);
@@ -458,6 +523,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             UpdateRecordingModeFlags();
             RecordButtonGlyph = "\uE720";
             _recordingMode = RecordingMode.Dictation;
+            _activeCustomAction = null;
             _cursorIndicator.Hide();
             UpdateTrayStatus(isRecording: false);
         }
@@ -474,9 +540,12 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             return;
         }
 
-        _tray.SetTooltip(_recordingMode == RecordingMode.Assistant
-            ? "Koli — Assistant actif (Alt Gr pour arrêter)"
-            : "Koli — Dictée active (F9 pour arrêter)");
+        _tray.SetTooltip(_recordingMode switch
+        {
+            RecordingMode.Assistant => "Koli — Assistant actif (Alt Gr pour arrêter)",
+            RecordingMode.CustomAction => $"Koli — {_activeCustomAction?.Name ?? "Action"} active",
+            _ => "Koli — Dictée active (F9 pour arrêter)"
+        });
     }
 
     private void SyncInputLanguageBeforeRecording()
@@ -537,7 +606,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
             DeliverText(answer);
             var historyEntry = $"Q: {question}\nA: {answer}";
-            _history.Add(historyEntry, _settings.AzureOpenAI.Language ?? "en");
+            _history.Add(historyEntry, _settings.AzureOpenAI.Language ?? "en", TranscriptHistoryKind.Assistant);
             TranscriptTitle = "Assistant response";
             LiveTranscript = $"Q: {question}\n\nA: {answer}";
             ShowTranscriptCard = true;
@@ -549,6 +618,47 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         }
 
         return savedAsPending;
+    }
+
+    private async Task ProcessCustomActionStopAsync(string apiKey)
+    {
+        var profile = _activeCustomAction;
+        var source = _accumulatedTranscription.ToString().Trim();
+        if (profile == null || string.IsNullOrWhiteSpace(source))
+            return;
+
+        StatusText = "Processing...";
+        _toast.ShowInfo("Koli", $"Running {profile.Name}");
+        await using var service = new CustomActionProcessingService(
+            _settings.CustomActions,
+            _settings.AzureOpenAI.Endpoint,
+            apiKey);
+        service.RequestLogging += OnRequestLogging;
+        service.ResponseLogging += OnResponseLogging;
+        service.ErrorLogging += OnErrorLogging;
+        var result = await service.ProcessAsync(profile, source, CancellationToken.None);
+
+        var language = profile.LanguageMode.Equals("Fixed", StringComparison.OrdinalIgnoreCase)
+            ? profile.Language
+            : _settings.AzureOpenAI.Language;
+        if (string.IsNullOrWhiteSpace(result))
+        {
+            CopyToClipboard(source);
+            _history.Add(source, language, TranscriptHistoryKind.CustomAction, profile.Name, source);
+            LiveTranscript = source;
+            TranscriptTitle = $"{profile.Name} — processing failed";
+            ShowTranscriptCard = true;
+            _toast.ShowError("Custom action", "Processing failed. The raw transcription was copied but was not typed.");
+            return;
+        }
+
+        DeliverText(result);
+        _history.Add(result, language, TranscriptHistoryKind.CustomAction, profile.Name, source);
+        _accumulatedTranscription.Clear();
+        _accumulatedTranscription.Append(result);
+        LiveTranscript = result;
+        TranscriptTitle = profile.Name;
+        ShowTranscriptCard = true;
     }
 
     private async Task DeliverDictationResultAsync()
@@ -568,7 +678,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
                 _toast.ShowInfo("Realtime", "Translation/Rewrite applied to clipboard only (live typing kept original).");
         }
 
-        _history.Add(finalText, _settings.AzureOpenAI.Language ?? "en");
+        _history.Add(finalText, _settings.AzureOpenAI.Language ?? "en", TranscriptHistoryKind.Dictation);
         TranscriptTitle = "Last transcript";
         LiveTranscript = finalText;
         ShowTranscriptCard = true;
@@ -577,6 +687,14 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     }
 
     private void DeliverText(string text)
+    {
+        CopyToClipboard(text);
+
+        if (_settings.Typing.TypeInActiveWindow && !_typing.RealtimeTypedAnything)
+            _typing.TypeText(text, _settings.Typing, _getWindowHandle(), addLeadingSpace: false);
+    }
+
+    private void CopyToClipboard(string text)
     {
         try
         {
@@ -589,8 +707,31 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             _debugLog.LogError("Error copying text to clipboard", ex);
         }
 
-        if (_settings.Typing.TypeInActiveWindow && !_typing.RealtimeTypedAnything)
-            _typing.TypeText(text, _settings.Typing, _getWindowHandle(), addLeadingSpace: false);
+    }
+
+    private AzureOpenAISettings CreateCustomActionTranscriptionSettings(CustomActionProfile profile)
+    {
+        var source = _settings.AzureOpenAI;
+        return new AzureOpenAISettings
+        {
+            ApiKey = source.ApiKey,
+            Endpoint = source.Endpoint,
+            Model = source.Model,
+            Language = profile.LanguageMode.Equals("Fixed", StringComparison.OrdinalIgnoreCase) ? profile.Language : source.Language,
+            Prompt = source.Prompt,
+            LanguageMode = "Manual",
+            ManualLanguage = profile.LanguageMode.Equals("Fixed", StringComparison.OrdinalIgnoreCase) ? profile.Language : source.Language,
+            OmitTranscriptionLanguage = source.OmitTranscriptionLanguage,
+            ProviderId = source.ProviderId,
+            TranscriptionPromptId = source.TranscriptionPromptId,
+            FormattingPromptId = null,
+            EnableSpeakerDiarization = false,
+            EnableStreamingTranscription = false,
+            StreamingEndpoint = source.StreamingEndpoint,
+            StreamingProviderId = source.StreamingProviderId,
+            RealtimeEndpoint = source.RealtimeEndpoint,
+            UseQueryAudioHttpStreamingFallback = false
+        };
     }
 
     private async Task ApplyTranslationAsync(string apiKey, bool outputAlreadyApplied)
