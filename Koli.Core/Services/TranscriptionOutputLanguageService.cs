@@ -3,8 +3,8 @@ using Koli.Config;
 namespace Koli.Services;
 
 /// <summary>
-/// Resolves spoken (input) vs desired written (output) language for OpenAI/Azure STT routing.
-/// On-premise endpoints are excluded from output-language features.
+/// Resolves spoken (input) vs desired written (output) language for STT routing and post-translation.
+/// OpenAI endpoints may apply output language during transcription; on-prem uses post-translation.
 /// </summary>
 public static class TranscriptionOutputLanguageService
 {
@@ -15,8 +15,7 @@ public static class TranscriptionOutputLanguageService
         return endpoint.Contains("openai.com", StringComparison.OrdinalIgnoreCase);
     }
 
-    public static bool IsOutputLanguageSupported(AppSettings settings) =>
-        IsOpenAiEndpoint(settings.AzureOpenAI.Endpoint);
+    public static bool IsOutputLanguageSupported(AppSettings settings) => true;
 
     public static string GetInputLanguage(AppSettings settings) =>
         GetInputLanguage(settings.AzureOpenAI);

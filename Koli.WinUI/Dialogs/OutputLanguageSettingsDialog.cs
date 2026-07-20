@@ -8,44 +8,27 @@ namespace Koli.WinUI.Dialogs;
 public sealed class OutputLanguageSettingsDialog : ContentDialog
 {
     private readonly TranslationSettings _settings;
-    private readonly bool _isAvailable;
-    private readonly RadioButton? _sameAsSpokenRadio;
-    private readonly RadioButton? _fixedRadio;
-    private readonly ComboBox? _languageCombo;
-    private readonly TextBox? _customIsoBox;
+    private readonly RadioButton _sameAsSpokenRadio;
+    private readonly RadioButton _fixedRadio;
+    private readonly ComboBox _languageCombo;
+    private readonly TextBox _customIsoBox;
 
     private readonly IReadOnlyList<(string Label, string Code)> _presetLanguages;
 
     public OutputLanguageSettingsDialog(TranslationSettings settings, string? apiEndpoint, string? displayLocale = null)
     {
         _settings = settings;
-        _isAvailable = TranscriptionOutputLanguageService.IsOpenAiEndpoint(apiEndpoint);
         _presetLanguages = OutputLanguageCatalog.GetPresetOptions(displayLocale);
 
         Title = "Output language";
         PrimaryButtonText = "Save";
         CloseButtonText = "Cancel";
-        IsPrimaryButtonEnabled = _isAvailable;
 
         TranscriptionOutputLanguageService.MigrateTranslationSettings(_settings);
         var isFixed = _settings.Mode.Equals("Fixed", StringComparison.OrdinalIgnoreCase)
                       && !string.IsNullOrWhiteSpace(_settings.TargetLanguage);
 
         var panel = new StackPanel { Spacing = 12, MinWidth = 420 };
-
-        if (!_isAvailable)
-        {
-            panel.Children.Add(new InfoBar
-            {
-                IsOpen = true,
-                IsClosable = false,
-                Severity = InfoBarSeverity.Warning,
-                Title = "Not available with this endpoint",
-                Message = "Output language selection is only available with OpenAI or Azure OpenAI endpoints."
-            });
-            Content = panel;
-            return;
-        }
 
         _sameAsSpokenRadio = new RadioButton { Content = "Same as spoken", IsChecked = !isFixed };
         _fixedRadio = new RadioButton { Content = "Fixed language", IsChecked = isFixed };
@@ -78,8 +61,10 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
 
         var help = new TextBlock
         {
-            Text = "For English with whisper-1, native audio translation is used.\n"
-                   + "In Realtime mode, an automatic fallback may apply.",
+            Text = TranscriptionOutputLanguageService.IsOpenAiEndpoint(apiEndpoint)
+                ? "For English with whisper-1, native audio translation is used.\n"
+                  + "In Realtime mode, an automatic fallback may apply."
+                : "On-premise endpoints apply the selected output language after transcription.",
             TextWrapping = TextWrapping.WrapWholeWords,
             Foreground = Application.Current.Resources["TextSecondaryBrush"] as Microsoft.UI.Xaml.Media.Brush,
             FontSize = 12
@@ -98,17 +83,12 @@ public sealed class OutputLanguageSettingsDialog : ContentDialog
 
     private void UpdateFixedControls(bool fixedMode)
     {
-        if (_languageCombo is null || _customIsoBox is null)
-            return;
         _languageCombo.IsEnabled = fixedMode;
         _customIsoBox.IsEnabled = fixedMode;
     }
 
     private void SaveSettings()
     {
-        if (!_isAvailable || _sameAsSpokenRadio is null || _customIsoBox is null || _languageCombo is null)
-            return;
-
         if (_sameAsSpokenRadio.IsChecked == true)
         {
             _settings.Mode = "SameAsSpoken";

@@ -60,12 +60,6 @@
                                 VerticalAlignment="Center"/>
                     </StackPanel>
 
-                    <InfoBar IsOpen="{Binding ShowOnPremOutputLanguageNotice}"
-                             IsClosable="False"
-                             Severity="Informational"
-                             Title="Output language unavailable"
-                             Message="Output language selection requires an OpenAI or Azure OpenAI endpoint."/>
-
                     <cc:SettingsExpander Header="Output language"
                                          Description="Force the transcription language or follow the spoken one."
                                          IsExpanded="True"
@@ -286,7 +280,20 @@
                                            FontWeight="SemiBold"
                                            FontSize="15"
                                            Foreground="{ThemeResource TextPrimaryBrush}"/>
-                                <TextBlock Text="{Binding AboutText}"
+                                <TextBlock Text="{Binding AboutSummary}"
+                                           TextWrapping="WrapWholeWords"
+                                           Foreground="{ThemeResource TextSecondaryBrush}"/>
+                                <TextBlock Text="{Binding AboutDeveloper}"
+                                           Foreground="{ThemeResource TextSecondaryBrush}"/>
+                                <HyperlinkButton Content="{Binding ContactEmail}"
+                                                 NavigateUri="{Binding ContactMailtoUri}"
+                                                 Padding="0"
+                                                 HorizontalAlignment="Left"/>
+                                <HyperlinkButton Content="{Binding RepositoryUrl}"
+                                                 NavigateUri="{Binding RepositoryUri}"
+                                                 Padding="0"
+                                                 HorizontalAlignment="Left"/>
+                                <TextBlock Text="{Binding AboutCopyright}"
                                            TextWrapping="WrapWholeWords"
                                            Foreground="{ThemeResource TextSecondaryBrush}"/>
                             </StackPanel>

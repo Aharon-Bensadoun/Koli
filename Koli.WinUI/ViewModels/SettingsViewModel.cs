@@ -21,7 +21,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly GlobalHotkeyService _hotkeys;
     private bool _loadingLaunchAtStartup;
 
-    [ObservableProperty] private string _aboutText = "";
     [ObservableProperty] private bool _isLaunchAtStartupAvailable;
     [ObservableProperty] private bool _launchAtStartup;
     [ObservableProperty] private bool _rewriteEnabled;
@@ -30,7 +29,6 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private string _translationTarget = "en";
     [ObservableProperty] private string _outputLanguageMode = "SameAsSpoken";
     [ObservableProperty] private bool _isOutputLanguageAvailable = true;
-    [ObservableProperty] private bool _showOnPremOutputLanguageNotice;
     [ObservableProperty] private bool _isTargetLanguageEnabled;
     [ObservableProperty] private LanguagePickerItem? _selectedTargetLanguage;
     [ObservableProperty] private OutputLanguageModeItem? _selectedOutputLanguageMode;
@@ -56,6 +54,16 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<LanguagePickerItem> TargetLanguageOptions { get; private set; } = [];
 
+    public string AboutSummary { get; } =
+        $"{AppInfo.ProductName} {AppInfo.Version}\n{AppInfo.Description}";
+
+    public string AboutDeveloper { get; } = AppInfo.DeveloperName;
+    public string ContactEmail { get; } = AppInfo.ContactEmail;
+    public Uri ContactMailtoUri { get; } = new($"mailto:{AppInfo.ContactEmail}");
+    public string RepositoryUrl { get; } = AppInfo.RepositoryUrl;
+    public Uri RepositoryUri { get; } = new(AppInfo.RepositoryUrl);
+    public string AboutCopyright { get; } = AppInfo.Copyright;
+
     public SettingsViewModel(AppSettings settings, SecureSettingsStore secureStore, IAppPaths paths, ToastNotificationService toast, InputLanguageService inputLanguage, StartupTaskService startupTask, GlobalHotkeyService hotkeys)
     {
         _settings = settings;
@@ -67,7 +75,6 @@ public sealed partial class SettingsViewModel : ObservableObject
         _hotkeys = hotkeys;
         LoadFromSettings();
         _ = LoadLaunchAtStartupAsync();
-        AboutText = $"{AppInfo.ProductName} {AppInfo.Version}\n{AppInfo.Description}\n\n{AppInfo.DeveloperName}\n{AppInfo.ContactEmail}\n{AppInfo.RepositoryUrl}\n\n{AppInfo.Copyright}";
     }
 
     private async Task LoadLaunchAtStartupAsync()
@@ -122,7 +129,6 @@ public sealed partial class SettingsViewModel : ObservableObject
             : _settings.Translation.TargetLanguage.Trim().ToLowerInvariant();
         OutputLanguageMode = _settings.Translation.Mode;
         IsOutputLanguageAvailable = TranscriptionOutputLanguageService.IsOutputLanguageSupported(_settings);
-        ShowOnPremOutputLanguageNotice = !IsOutputLanguageAvailable;
         TypingAutoSpace = _settings.Typing.AutoSpace;
         TypingInActiveWindow = _settings.Typing.TypeInActiveWindow;
         TypingStreamingMode = _settings.Typing.StreamingMode;

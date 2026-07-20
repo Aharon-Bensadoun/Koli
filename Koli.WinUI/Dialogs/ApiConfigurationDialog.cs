@@ -8,10 +8,14 @@ namespace Koli.WinUI.Dialogs;
 
 public sealed class ApiConfigurationDialog : ContentDialog
 {
+    private const string EndpointKindOpenAi = "OpenAI";
+    private const string EndpointKindOnPremise = "On-premise";
+
     private readonly AzureOpenAISettings _settings;
     private readonly PasswordBox _apiKeyPasswordBox;
     private readonly TextBox _apiKeyTextBox;
     private readonly CheckBox _showApiKeyCheckBox;
+    private readonly ComboBox _endpointKindBox;
     private readonly TextBox _endpointBox;
     private readonly ComboBox _modelBox;
     private readonly TextBox _providerIdBox;
@@ -95,12 +99,25 @@ public sealed class ApiConfigurationDialog : ContentDialog
         _showApiKeyCheckBox.Checked += (_, _) => SetApiKeyVisible(true);
         _showApiKeyCheckBox.Unchecked += (_, _) => SetApiKeyVisible(false);
 
-        // Endpoint (optional)
+        // Endpoint kind + optional on-prem URL
+        var isOnPrem = IsOnPremEndpoint(settings.Endpoint);
+        _endpointKindBox = new ComboBox
+        {
+            Header = "Endpoint",
+            HorizontalAlignment = HorizontalAlignment.Stretch
+        };
+        _endpointKindBox.Items.Add(EndpointKindOpenAi);
+        _endpointKindBox.Items.Add(EndpointKindOnPremise);
+        _endpointKindBox.SelectedItem = isOnPrem ? EndpointKindOnPremise : EndpointKindOpenAi;
+        panel.Children.Add(_endpointKindBox);
+
         _endpointBox = new TextBox
         {
-            Header = "Endpoint (optional — empty = OpenAI cloud)",
-            Text = settings.Endpoint,
-            PlaceholderText = "https://api.openai.com"
+            Header = "On-premise URL",
+            Text = isOnPrem ? settings.Endpoint : string.Empty,
+            PlaceholderText = "https://your-server.example.com/api/ai/queryAudio",
+            Visibility = isOnPrem ? Visibility.Visible : Visibility.Collapsed,
+            IsEnabled = isOnPrem
         };
         panel.Children.Add(_endpointBox);
 
@@ -163,7 +180,7 @@ public sealed class ApiConfigurationDialog : ContentDialog
         _onPremStreamingPanel = new StackPanel
         {
             Spacing = 10,
-            Visibility = IsOnPremEndpoint(settings.Endpoint) ? Visibility.Visible : Visibility.Collapsed
+            Visibility = isOnPrem ? Visibility.Visible : Visibility.Collapsed
         };
         _onPremStreamingPanel.Children.Add(_enableStreamingCheckBox);
         _onPremStreamingPanel.Children.Add(realtimeEndpointBox);
@@ -172,16 +189,21 @@ public sealed class ApiConfigurationDialog : ContentDialog
         _onPremStreamingPanel.Children.Add(_streamingProviderIdBox);
         panel.Children.Add(_onPremStreamingPanel);
 
-        _endpointBox.TextChanged += (_, _) =>
-            _onPremStreamingPanel.Visibility = IsOnPremEndpoint(_endpointBox.Text) ? Visibility.Visible : Visibility.Collapsed;
+        _endpointKindBox.SelectionChanged += (_, _) => UpdateEndpointUi();
 
-        Content = panel;
+        Content = new ScrollViewer
+        {
+            Content = panel,
+            MaxHeight = 620,
+            VerticalScrollBarVisibility = ScrollBarVisibility.Auto,
+            HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled
+        };
 
         PrimaryButtonClick += (_, _) =>
         {
             var apiKey = ApiKeyValue.Trim();
             _settings.ApiKey = SecureSettingsStore.IsPlaceholderApiKey(apiKey) ? string.Empty : apiKey;
-            _settings.Endpoint = _endpointBox.Text.Trim();
+            _settings.Endpoint = IsOnPremiseSelected ? _endpointBox.Text.Trim() : string.Empty;
             _settings.Model = string.IsNullOrWhiteSpace(_modelBox.Text) ? _modelBox.SelectedItem?.ToString() ?? settings.Model : _modelBox.Text.Trim();
             if (int.TryParse(_providerIdBox.Text, out var providerId))
                 _settings.ProviderId = providerId;
@@ -204,6 +226,9 @@ public sealed class ApiConfigurationDialog : ContentDialog
     private string ApiKeyValue =>
         _showApiKeyCheckBox.IsChecked == true ? _apiKeyTextBox.Text : _apiKeyPasswordBox.Password;
 
+    private bool IsOnPremiseSelected =>
+        Equals(_endpointKindBox.SelectedItem, EndpointKindOnPremise);
+
     private void SetApiKeyVisible(bool visible)
     {
         if (visible)
@@ -218,6 +243,16 @@ public sealed class ApiConfigurationDialog : ContentDialog
         _apiKeyPasswordBox.Password = _apiKeyTextBox.Text;
         _apiKeyTextBox.Visibility = Visibility.Collapsed;
         _apiKeyPasswordBox.Visibility = Visibility.Visible;
+    }
+
+    private void UpdateEndpointUi()
+    {
+        var onPrem = IsOnPremiseSelected;
+        _endpointBox.Visibility = onPrem ? Visibility.Visible : Visibility.Collapsed;
+        _endpointBox.IsEnabled = onPrem;
+        _onPremStreamingPanel.Visibility = onPrem ? Visibility.Visible : Visibility.Collapsed;
+        if (onPrem)
+            _endpointBox.Focus(FocusState.Programmatic);
     }
 
     private static bool IsOnPremEndpoint(string? endpoint) =>

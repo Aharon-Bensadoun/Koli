@@ -545,12 +545,12 @@ public class TranscriptionOutputLanguageServiceTests
     }
 
     [Theory]
-    [InlineData("https://corp.example.com/api/AI/queryAudio", false)]
-    [InlineData("https://api.openai.com", true)]
-    public void IsOutputLanguageSupported_MatchesOpenAi(string endpoint, bool expected)
+    [InlineData("https://corp.example.com/api/AI/queryAudio")]
+    [InlineData("https://api.openai.com")]
+    public void IsOutputLanguageSupported_ForAllEndpoints(string endpoint)
     {
         var settings = new AppSettings { AzureOpenAI = new AzureOpenAISettings { Endpoint = endpoint } };
-        Assert.Equal(expected, TranscriptionOutputLanguageService.IsOutputLanguageSupported(settings));
+        Assert.True(TranscriptionOutputLanguageService.IsOutputLanguageSupported(settings));
     }
 
     [Fact]
