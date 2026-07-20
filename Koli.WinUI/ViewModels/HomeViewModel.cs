@@ -27,6 +27,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
     private readonly DebugLogService _debugLog;
     private readonly HistoryService _history;
     private readonly PendingAudioStore _pendingAudio;
+    private readonly DebugAudioStore _debugAudio;
     private readonly TypingService _typing;
     private readonly ToastNotificationService _toast;
     private readonly CursorIndicatorService _cursorIndicator;
@@ -71,6 +72,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         DebugLogService debugLog,
         HistoryService history,
         PendingAudioStore pendingAudio,
+        DebugAudioStore debugAudio,
         TypingService typing,
         ToastNotificationService toast,
         CursorIndicatorService cursorIndicator,
@@ -85,6 +87,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         _debugLog = debugLog;
         _history = history;
         _pendingAudio = pendingAudio;
+        _debugAudio = debugAudio;
         _typing = typing;
         _toast = toast;
         _cursorIndicator = cursorIndicator;
@@ -406,6 +409,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
 
         var isAssistant = _recordingMode == RecordingMode.Assistant;
         var isCustomAction = _recordingMode == RecordingMode.CustomAction;
+        TrySaveDebugAudio(collectedAudio, isAssistant, isCustomAction);
         StatusText = isAssistant ? "Assistant…" : "Transcribing...";
         var progressMessage = isAssistant
             ? "Transcription in progress"
@@ -852,6 +856,35 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
         catch (Exception ex)
         {
             _debugLog.LogError("Failed to save pending audio", ex);
+        }
+    }
+
+    private void TrySaveDebugAudio(byte[]? audio, bool isAssistant, bool isCustomAction)
+    {
+        if (!_settings.Audio.KeepDebugAudio || audio == null || audio.Length == 0)
+            return;
+
+        try
+        {
+            var kind = isAssistant
+                ? "Assistant"
+                : isCustomAction
+                    ? (_activeCustomAction?.Name ?? "CustomAction")
+                    : "Dictation";
+            var max = _settings.Audio.DebugAudioMaxEntries > 0
+                ? _settings.Audio.DebugAudioMaxEntries
+                : DebugAudioStore.DefaultMaxEntries;
+            _debugAudio.Add(
+                audio,
+                _settings.Audio.SampleRate,
+                _settings.AzureOpenAI.Language ?? "",
+                kind,
+                max);
+            _debugLog.LogInfo($"Debug audio saved ({kind}, {audio.Length} bytes PCM)");
+        }
+        catch (Exception ex)
+        {
+            _debugLog.LogError("Failed to save debug audio", ex);
         }
     }
 

@@ -7,6 +7,7 @@
         <ResourceDictionary>
             <controls:BoolNegationConverter x:Key="BoolNegationConverter"/>
             <controls:BoolToVisibilityConverter x:Key="BoolToVisibilityConverter"/>
+            <controls:InverseBoolToVisibilityConverter x:Key="InverseBoolToVisibilityConverter"/>
             <controls:HexToBrushConverter x:Key="HexToBrushConverter"/>
             <controls:NameToInitialsConverter x:Key="NameToInitialsConverter"/>
             <controls:CollectionVisibilityConverter x:Key="CollectionVisibilityConverter"/>

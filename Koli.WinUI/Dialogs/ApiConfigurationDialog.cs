@@ -17,6 +17,7 @@ public sealed class ApiConfigurationDialog : ContentDialog
     private readonly CheckBox _showApiKeyCheckBox;
     private readonly ComboBox _endpointKindBox;
     private readonly TextBox _endpointBox;
+    private readonly TextBlock _modelLabel;
     private readonly ComboBox _modelBox;
     private readonly TextBox _providerIdBox;
     private readonly StackPanel _onPremStreamingPanel;
@@ -121,20 +122,25 @@ public sealed class ApiConfigurationDialog : ContentDialog
         };
         panel.Children.Add(_endpointBox);
 
-        // Model (required)
-        var modelLabel = new TextBlock { FontWeight = Microsoft.UI.Text.FontWeights.SemiBold };
-        modelLabel.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = "Model" });
-        modelLabel.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run
+        // Model (required for OpenAI; hidden for on-premise)
+        _modelLabel = new TextBlock
+        {
+            FontWeight = Microsoft.UI.Text.FontWeights.SemiBold,
+            Visibility = isOnPrem ? Visibility.Collapsed : Visibility.Visible
+        };
+        _modelLabel.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run { Text = "Model" });
+        _modelLabel.Inlines.Add(new Microsoft.UI.Xaml.Documents.Run
         {
             Text = " *",
             Foreground = Application.Current.Resources["AccentPrimaryBrush"] as Brush
         });
-        panel.Children.Add(modelLabel);
+        panel.Children.Add(_modelLabel);
         _modelBox = new ComboBox
         {
             IsEditable = true,
             Text = settings.Model,
-            HorizontalAlignment = HorizontalAlignment.Stretch
+            HorizontalAlignment = HorizontalAlignment.Stretch,
+            Visibility = isOnPrem ? Visibility.Collapsed : Visibility.Visible
         };
         _modelBox.Items.Add("gpt-4o-transcribe");
         _modelBox.Items.Add("whisper-1");
@@ -142,10 +148,10 @@ public sealed class ApiConfigurationDialog : ContentDialog
         _modelBox.Items.Add("gpt-realtime-whisper");
         panel.Children.Add(_modelBox);
 
-        // Provider ID (optional)
+        // Provider ID (primary choice for on-premise)
         _providerIdBox = new TextBox
         {
-            Header = "Provider ID (on-prem, optional)",
+            Header = isOnPrem ? "Provider ID" : "Provider ID (on-prem, optional)",
             Text = settings.ProviderId?.ToString() ?? ""
         };
         panel.Children.Add(_providerIdBox);
@@ -177,10 +183,11 @@ public sealed class ApiConfigurationDialog : ContentDialog
             Header = "Streaming provider ID (optional — empty = Provider ID above)",
             Text = settings.StreamingProviderId?.ToString() ?? ""
         };
+        // Advanced on-prem streaming options kept in code but hidden by default.
         _onPremStreamingPanel = new StackPanel
         {
             Spacing = 10,
-            Visibility = isOnPrem ? Visibility.Visible : Visibility.Collapsed
+            Visibility = Visibility.Collapsed
         };
         _onPremStreamingPanel.Children.Add(_enableStreamingCheckBox);
         _onPremStreamingPanel.Children.Add(realtimeEndpointBox);
@@ -204,7 +211,12 @@ public sealed class ApiConfigurationDialog : ContentDialog
             var apiKey = ApiKeyValue.Trim();
             _settings.ApiKey = SecureSettingsStore.IsPlaceholderApiKey(apiKey) ? string.Empty : apiKey;
             _settings.Endpoint = IsOnPremiseSelected ? _endpointBox.Text.Trim() : string.Empty;
-            _settings.Model = string.IsNullOrWhiteSpace(_modelBox.Text) ? _modelBox.SelectedItem?.ToString() ?? settings.Model : _modelBox.Text.Trim();
+            if (!IsOnPremiseSelected)
+            {
+                _settings.Model = string.IsNullOrWhiteSpace(_modelBox.Text)
+                    ? _modelBox.SelectedItem?.ToString() ?? settings.Model
+                    : _modelBox.Text.Trim();
+            }
             if (int.TryParse(_providerIdBox.Text, out var providerId))
                 _settings.ProviderId = providerId;
             else
@@ -250,7 +262,11 @@ public sealed class ApiConfigurationDialog : ContentDialog
         var onPrem = IsOnPremiseSelected;
         _endpointBox.Visibility = onPrem ? Visibility.Visible : Visibility.Collapsed;
         _endpointBox.IsEnabled = onPrem;
-        _onPremStreamingPanel.Visibility = onPrem ? Visibility.Visible : Visibility.Collapsed;
+        _modelLabel.Visibility = onPrem ? Visibility.Collapsed : Visibility.Visible;
+        _modelBox.Visibility = onPrem ? Visibility.Collapsed : Visibility.Visible;
+        _providerIdBox.Header = onPrem ? "Provider ID" : "Provider ID (on-prem, optional)";
+        // Keep advanced streaming options hidden; re-enable Visibility here when exposing them again.
+        _onPremStreamingPanel.Visibility = Visibility.Collapsed;
         if (onPrem)
             _endpointBox.Focus(FocusState.Programmatic);
     }

@@ -41,6 +41,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private bool _customActionsEnabled;
     [ObservableProperty] private string _customActionsDefaultModel = "gpt-4.1";
     [ObservableProperty] private string _customActionsDefaultProviderId = "";
+    [ObservableProperty] private bool _keepDebugAudio;
     public ObservableCollection<CustomActionProfile> CustomActionProfiles { get; } = [];
 
     public IReadOnlyList<string> RewriteLevels { get; } =
@@ -140,6 +141,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         CustomActionsEnabled = _settings.CustomActions.Enabled;
         CustomActionsDefaultModel = _settings.CustomActions.DefaultOpenAiModel;
         CustomActionsDefaultProviderId = _settings.CustomActions.DefaultAiNexusProviderId?.ToString() ?? "";
+        KeepDebugAudio = _settings.Audio.KeepDebugAudio;
         CustomActionProfiles.Clear();
         foreach (var profile in _settings.CustomActions.Profiles)
             CustomActionProfiles.Add(profile.Copy());
@@ -200,6 +202,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _settings.CustomActions.DefaultOpenAiModel = string.IsNullOrWhiteSpace(CustomActionsDefaultModel) ? "gpt-4.1" : CustomActionsDefaultModel.Trim();
         _settings.CustomActions.DefaultAiNexusProviderId = int.TryParse(CustomActionsDefaultProviderId, out var defaultProviderId) ? defaultProviderId : null;
         _settings.CustomActions.Profiles = CustomActionProfiles.Select(profile => profile.Copy()).ToList();
+        _settings.Audio.KeepDebugAudio = KeepDebugAudio;
         _settings.Save(_paths.ConfigPath);
         RegisterCompatibleCustomHotkeys();
         if (_hotkeys.CustomHotkeyErrors.Count > 0)

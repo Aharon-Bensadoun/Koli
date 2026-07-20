@@ -56,6 +56,8 @@ public sealed class AppServices
 
     public PendingAudioStore PendingAudio => _services.GetRequiredService<PendingAudioStore>();
 
+    public DebugAudioStore DebugAudio => _services.GetRequiredService<DebugAudioStore>();
+
     public AudioPlaybackService AudioPlayback => _services.GetRequiredService<AudioPlaybackService>();
 
     public TypingService Typing => _services.GetRequiredService<TypingService>();
@@ -161,6 +163,18 @@ public static class ServiceCollectionExtensions
             var pendingIndex = Path.Combine(paths.ConfigDirectory, "pending-audio.json");
 
             return new PendingAudioStore(pendingFolder, pendingIndex);
+
+        });
+
+        services.AddSingleton(_ =>
+
+        {
+
+            var debugFolder = Path.Combine(paths.ConfigDirectory, "DebugAudio");
+
+            var debugIndex = Path.Combine(paths.ConfigDirectory, "debug-audio.json");
+
+            return new DebugAudioStore(debugFolder, debugIndex);
 
         });
 

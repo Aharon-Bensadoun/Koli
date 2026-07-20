@@ -22,11 +22,12 @@ public enum CursorIndicatorState
 
 public sealed class CursorIndicatorWindow : WindowEx
 {
-    private const int HaloSize = 44;
-    private const int RingSize = 24;
-    private const int CoreSize = 14;
-    private const int WindowSize = 56;
-    private const int CursorOffset = 14;
+    private const int WindowSize = 64;
+    private const int GlowSize = 40;
+    private const int RippleSize = 20;
+    private const int CoreSize = 11;
+    private const int CoreRingSize = 17;
+    private const int CursorOffset = 16;
 
     private const int GwlExstyle = -20;
     private const int WsExLayered = 0x00080000;
@@ -34,15 +35,24 @@ public sealed class CursorIndicatorWindow : WindowEx
     private const int WsExToolWindow = 0x00000080;
     private const int WsExNoActivate = 0x08000000;
 
-    private readonly Ellipse _halo;
-    private readonly Ellipse _ring;
+    private readonly Ellipse _glow;
+    private readonly Ellipse _ripple;
+    private readonly Ellipse _coreRing;
     private readonly Ellipse _core;
-    private readonly ScaleTransform _haloScale;
+    private readonly ScaleTransform _glowScale;
+    private readonly ScaleTransform _rippleScale;
+    private readonly RadialGradientBrush _glowBrush = new();
+    private readonly GradientStop _glowInnerStop = new() { Offset = 0.0 };
+    private readonly GradientStop _glowOuterStop = new() { Offset = 1.0 };
+    private readonly SolidColorBrush _rippleBrush = new();
+    private readonly SolidColorBrush _coreRingBrush = new();
+    private readonly SolidColorBrush _coreBrush = new();
     private readonly DispatcherQueue _dispatcher;
     private DispatcherQueueTimer? _followTimer;
     private DispatcherQueueTimer? _pulseTimer;
     private CursorIndicatorState _state = CursorIndicatorState.Hidden;
-    private double _pulsePhase;
+    private double _breathPhase;
+    private double _ripplePhase;
     private bool _chromeConfigured;
 
     public CursorIndicatorWindow()
@@ -59,40 +69,67 @@ public sealed class CursorIndicatorWindow : WindowEx
 
         _dispatcher = DispatcherQueue.GetForCurrentThread();
 
-        _haloScale = new ScaleTransform { ScaleX = 1, ScaleY = 1, CenterX = HaloSize / 2.0, CenterY = HaloSize / 2.0 };
-
-        _halo = new Ellipse
+        // Soft ambient glow behind everything — gently breathes.
+        _glowBrush.GradientStops.Add(_glowInnerStop);
+        _glowBrush.GradientStops.Add(_glowOuterStop);
+        // Center of scaling is handled by RenderTransformOrigin (0.5,0.5); leave Center at 0.
+        _glowScale = new ScaleTransform { ScaleX = 1, ScaleY = 1 };
+        _glow = new Ellipse
         {
-            Width = HaloSize,
-            Height = HaloSize,
+            Width = GlowSize,
+            Height = GlowSize,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
+            Fill = _glowBrush,
             Opacity = 0.0,
+            IsHitTestVisible = false,
             RenderTransformOrigin = new global::Windows.Foundation.Point(0.5, 0.5),
-            RenderTransform = _haloScale,
+            RenderTransform = _glowScale,
         };
 
-        _ring = new Ellipse
+        // Expanding ripple ring — the "pulse" that radiates outward and fades.
+        _rippleScale = new ScaleTransform { ScaleX = 1, ScaleY = 1 };
+        _ripple = new Ellipse
         {
-            Width = RingSize,
-            Height = RingSize,
+            Width = RippleSize,
+            Height = RippleSize,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
+            Stroke = _rippleBrush,
             StrokeThickness = 1.5,
+            Opacity = 0.0,
+            IsHitTestVisible = false,
+            RenderTransformOrigin = new global::Windows.Foundation.Point(0.5, 0.5),
+            RenderTransform = _rippleScale,
         };
 
+        // Thin outline that frames the core for a crisp, contained look.
+        _coreRing = new Ellipse
+        {
+            Width = CoreRingSize,
+            Height = CoreRingSize,
+            HorizontalAlignment = HorizontalAlignment.Center,
+            VerticalAlignment = VerticalAlignment.Center,
+            Stroke = _coreRingBrush,
+            StrokeThickness = 1.5,
+            IsHitTestVisible = false,
+        };
+
+        // Solid, saturated core dot — the stable anchor of the indicator.
         _core = new Ellipse
         {
             Width = CoreSize,
             Height = CoreSize,
             HorizontalAlignment = HorizontalAlignment.Center,
             VerticalAlignment = VerticalAlignment.Center,
+            Fill = _coreBrush,
+            IsHitTestVisible = false,
         };
 
         Content = new Grid
         {
             Background = new SolidColorBrush(ColorHelper.FromArgb(0, 0, 0, 0)),
-            Children = { _halo, _ring, _core }
+            Children = { _glow, _ripple, _coreRing, _core }
         };
     }
 
@@ -106,7 +143,8 @@ public sealed class CursorIndicatorWindow : WindowEx
 
         _state = state;
         ApplyPalette(state);
-        _pulsePhase = 0;
+        _breathPhase = 0;
+        _ripplePhase = 0;
 
         ConfigureChrome();
         MoveNearCursor();
@@ -125,44 +163,19 @@ public sealed class CursorIndicatorWindow : WindowEx
 
     private void ApplyPalette(CursorIndicatorState state)
     {
-        // Pull aurora brushes from app resources so the orb stays in sync with the theme.
-        var resources = Application.Current.Resources;
-
-        Brush halo = state switch
+        // Accent color drives the whole indicator; alpha varies per layer.
+        Color accent = state switch
         {
-            CursorIndicatorState.AssistantRecording => SafeBrush(resources, "AssistantHaloBrush",
-                ColorHelper.FromArgb(0xCC, 0x22, 0xD3, 0xEE)),
-            CursorIndicatorState.Processing => SafeBrush(resources, "AuroraHaloBrush",
-                ColorHelper.FromArgb(0xCC, 0x7C, 0x3A, 0xED)),
-            _ => SafeBrush(resources, "RecordingHaloBrush",
-                ColorHelper.FromArgb(0xCC, 0xFF, 0x4D, 0x6A)),
+            CursorIndicatorState.AssistantRecording => ColorHelper.FromArgb(255, 0x22, 0xD3, 0xEE), // cyan
+            CursorIndicatorState.Processing => ColorHelper.FromArgb(255, 0xA7, 0x8B, 0xFA),         // violet
+            _ => ColorHelper.FromArgb(255, 0xFF, 0x45, 0x63),                                        // recording red
         };
 
-        Brush core = state switch
-        {
-            CursorIndicatorState.AssistantRecording => new SolidColorBrush(ColorHelper.FromArgb(255, 0x22, 0xD3, 0xEE)),
-            CursorIndicatorState.Processing => new SolidColorBrush(ColorHelper.FromArgb(255, 0xA7, 0x8B, 0xFA)),
-            _ => new SolidColorBrush(ColorHelper.FromArgb(255, 0xFF, 0x4D, 0x6A)),
-        };
-
-        Brush ring = state switch
-        {
-            CursorIndicatorState.AssistantRecording => new SolidColorBrush(ColorHelper.FromArgb(0xCC, 0xA7, 0x8B, 0xFA)),
-            CursorIndicatorState.Processing => SafeBrush(resources, "AuroraRibbonBrush",
-                ColorHelper.FromArgb(0xCC, 0x7C, 0x3A, 0xED)),
-            _ => new SolidColorBrush(ColorHelper.FromArgb(0xCC, 0xFF, 0x7A, 0x93)),
-        };
-
-        _halo.Fill = halo;
-        _core.Fill = core;
-        _ring.Stroke = ring;
-    }
-
-    private static Brush SafeBrush(Microsoft.UI.Xaml.ResourceDictionary resources, string key, Color fallback)
-    {
-        if (resources.TryGetValue(key, out var value) && value is Brush brush)
-            return brush;
-        return new SolidColorBrush(fallback);
+        _glowInnerStop.Color = WithAlpha(accent, 0x9E);
+        _glowOuterStop.Color = WithAlpha(accent, 0x00);
+        _rippleBrush.Color = WithAlpha(accent, 0xE6);
+        _coreRingBrush.Color = WithAlpha(accent, 0x99);
+        _coreBrush.Color = accent;
     }
 
     private void ConfigureChrome()
@@ -209,23 +222,39 @@ public sealed class CursorIndicatorWindow : WindowEx
     {
         StopPulseTimer();
         _pulseTimer = _dispatcher.CreateTimer();
-        _pulseTimer.Interval = TimeSpan.FromMilliseconds(40);
+        _pulseTimer.Interval = TimeSpan.FromMilliseconds(16); // ~60 fps for a smooth animation
+
+        // Processing radiates a touch faster to read as "busy".
+        double rippleSpeed = _state == CursorIndicatorState.Processing ? 0.011 : 0.008;
+        double breathSpeed = _state == CursorIndicatorState.Processing ? 0.055 : 0.040;
+
         _pulseTimer.Tick += (_, _) =>
         {
             if (_state == CursorIndicatorState.Hidden)
                 return;
 
-            _pulsePhase += _state == CursorIndicatorState.Processing ? 0.18 : 0.12;
-            double sin01 = (Math.Sin(_pulsePhase) + 1) * 0.5; // 0..1
+            // Ripple: linear 0..1, expands outward while fading. Eased so it slows as it fades.
+            _ripplePhase += rippleSpeed;
+            if (_ripplePhase >= 1.0)
+                _ripplePhase -= 1.0;
 
-            // Halo opacity 0.20 → 0.65, halo scale 0.92 → 1.10
-            _halo.Opacity = 0.20 + sin01 * 0.45;
-            double scale = 0.92 + sin01 * 0.18;
-            _haloScale.ScaleX = scale;
-            _haloScale.ScaleY = scale;
+            double t = _ripplePhase;
+            double eased = 1.0 - Math.Pow(1.0 - t, 2.0); // ease-out
+            double rippleScale = 0.55 + eased * 1.85;      // 0.55 -> 2.40
+            _rippleScale.ScaleX = rippleScale;
+            _rippleScale.ScaleY = rippleScale;
+            _ripple.Opacity = (1.0 - t) * 0.55;            // brightest at birth, gone at the edge
 
-            // Core gentle opacity 0.85 → 1.0
-            _core.Opacity = 0.85 + sin01 * 0.15;
+            // Glow: slow sine breath in opacity + scale, colors stay saturated.
+            _breathPhase += breathSpeed;
+            double s = (Math.Sin(_breathPhase) + 1.0) * 0.5; // 0..1
+            _glow.Opacity = 0.30 + s * 0.30;
+            double glowScale = 0.92 + s * 0.14;
+            _glowScale.ScaleX = glowScale;
+            _glowScale.ScaleY = glowScale;
+
+            // Core breathes very subtly so it feels alive without flickering.
+            _core.Opacity = 0.90 + s * 0.10;
         };
         _pulseTimer.Start();
     }
@@ -237,6 +266,9 @@ public sealed class CursorIndicatorWindow : WindowEx
         _pulseTimer.Stop();
         _pulseTimer = null;
     }
+
+    private static Color WithAlpha(Color color, byte alpha) =>
+        ColorHelper.FromArgb(alpha, color.R, color.G, color.B);
 
     [DllImport("user32.dll")]
     private static extern bool GetCursorPos(out POINT lpPoint);

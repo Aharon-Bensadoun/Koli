@@ -38,6 +38,8 @@ public sealed class AppSettings
         // Ensure nested objects are initialized
         settings.AzureOpenAI ??= new AzureOpenAISettings();
         settings.Audio ??= new AudioSettings();
+        if (settings.Audio.DebugAudioMaxEntries < 1)
+            settings.Audio.DebugAudioMaxEntries = DebugAudioStore.DefaultMaxEntries;
         settings.Typing ??= new TypingSettings();
         settings.Rewrite ??= new RewriteSettings();
 #if KOLI_MEETING
@@ -133,6 +135,10 @@ public sealed class AudioSettings
 {
     public int SampleRate { get; set; } = 16_000;
     public string Device { get; set; } = "default";
+    /// <summary>When true, each capture is saved as WAV for replay on the Debug page.</summary>
+    public bool KeepDebugAudio { get; set; }
+    /// <summary>Max retained debug WAV files; oldest are deleted when exceeded.</summary>
+    public int DebugAudioMaxEntries { get; set; } = DebugAudioStore.DefaultMaxEntries;
 }
 
 public sealed class TypingSettings

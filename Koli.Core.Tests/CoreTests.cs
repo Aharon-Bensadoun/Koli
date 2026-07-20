@@ -942,3 +942,64 @@ public class MsiProfileProvisioningTests
         }
     }
 }
+
+public class DebugAudioStoreTests
+{
+    [Fact]
+    public void Add_WritesWavAndEvictsOldestBeyondMax()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"koli-debug-audio-{Guid.NewGuid():N}");
+        var folder = Path.Combine(root, "DebugAudio");
+        var index = Path.Combine(root, "debug-audio.json");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            var store = new DebugAudioStore(folder, index);
+            var pcm = new byte[3200]; // 0.1s at 16kHz mono 16-bit
+
+            store.Add(pcm, 16_000, "fr", "Dictation", maxEntries: 2);
+            store.Add(pcm, 16_000, "en", "Assistant", maxEntries: 2);
+            store.Add(pcm, 16_000, "he", "Dictation", maxEntries: 2);
+
+            var entries = store.List();
+            Assert.Equal(2, entries.Count);
+            Assert.Equal("he", entries[0].Language);
+            Assert.Equal("Assistant", entries[1].Kind);
+            Assert.True(File.Exists(entries[0].FilePath));
+            Assert.True(File.Exists(entries[1].FilePath));
+            Assert.Equal(2, Directory.GetFiles(folder, "*.wav").Length);
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+
+    [Fact]
+    public void Remove_DeletesFileAndIndexEntry()
+    {
+        var root = Path.Combine(Path.GetTempPath(), $"koli-debug-audio-{Guid.NewGuid():N}");
+        var folder = Path.Combine(root, "DebugAudio");
+        var index = Path.Combine(root, "debug-audio.json");
+        Directory.CreateDirectory(root);
+
+        try
+        {
+            var store = new DebugAudioStore(folder, index);
+            var entry = store.Add(new byte[3200], 16_000, "fr", "Dictation");
+            Assert.True(File.Exists(entry.FilePath));
+
+            store.Remove(entry.Id);
+
+            Assert.Empty(store.List());
+            Assert.False(File.Exists(entry.FilePath));
+        }
+        finally
+        {
+            if (Directory.Exists(root))
+                Directory.Delete(root, recursive: true);
+        }
+    }
+}

@@ -45,8 +45,6 @@
                         <cc:SettingsCard.HeaderIcon>
                             <FontIcon Glyph="&#xE192;"/>
                         </cc:SettingsCard.HeaderIcon>
-                        <FontIcon Glyph="&#xE76C;" FontSize="13"
-                                  Foreground="{ThemeResource TextSecondaryBrush}"/>
                     </cc:SettingsCard>
                 </StackPanel>
 
@@ -233,6 +231,24 @@
                             <FontIcon Glyph="&#xE9D9;"/>
                         </cc:SettingsCard.HeaderIcon>
                         <ToggleSwitch IsOn="{Binding TypingStreamingMode, Mode=TwoWay}"/>
+                    </cc:SettingsCard>
+                </StackPanel>
+
+                <!-- Developer / debug -->
+                <StackPanel Spacing="{StaticResource SpacingM}">
+                    <StackPanel Style="{StaticResource SectionEyebrowStyle}">
+                        <TextBlock Text="DEVELOPER" Style="{StaticResource EyebrowLabelStyle}"
+                                   Foreground="{StaticResource AuroraGlowBrush}"/>
+                        <Border Width="20" Height="2" CornerRadius="1"
+                                Background="{StaticResource EyebrowUnderlineBrush}"
+                                VerticalAlignment="Center"/>
+                    </StackPanel>
+                    <cc:SettingsCard Header="Keep debug audio"
+                                     Description="Save each capture as WAV so you can replay it on the Debug page. Oldest files are removed after the retention limit.">
+                        <cc:SettingsCard.HeaderIcon>
+                            <FontIcon Glyph="&#xE8D6;"/>
+                        </cc:SettingsCard.HeaderIcon>
+                        <ToggleSwitch IsOn="{Binding KeepDebugAudio, Mode=TwoWay}"/>
                     </cc:SettingsCard>
                 </StackPanel>
 
