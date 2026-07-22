@@ -533,6 +533,7 @@ public sealed class SpeechToTextService : IAsyncDisposable
         content.Add(new StringContent(_settings.ProviderId?.ToString(CultureInfo.InvariantCulture) ?? ""), "providerId");
         content.Add(new StringContent("false"), "stream");
         content.Add(new StringContent(_settings.EnableSpeakerDiarization ? "true" : "false"), "enableSpeakerDiarization");
+        content.Add(new StringContent(_settings.NoLog ? "true" : "false"), "noLog");
         content.Add(new StringContent(Environment.UserName), "externalUser");
 
         request.Content = content;
@@ -749,6 +750,7 @@ public sealed class SpeechToTextService : IAsyncDisposable
         content.Add(new StringContent(_settings.ProviderId?.ToString(CultureInfo.InvariantCulture) ?? ""), "providerId");
         content.Add(new StringContent("false"), "stream");
         content.Add(new StringContent("true"), "enableSpeakerDiarization");
+        content.Add(new StringContent(_settings.NoLog ? "true" : "false"), "noLog");
         content.Add(new StringContent(Environment.UserName), "externalUser");
 
         request.Content = content;

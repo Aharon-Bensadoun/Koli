@@ -152,6 +152,7 @@ public sealed class OnPremRealtimeTranscriptionSession : IAsyncDisposable
             start["language"] = lang;
 
         start["externalUser"] = Environment.UserName;
+        start["noLog"] = settings.NoLog;
 
         return start.ToJsonString();
     }

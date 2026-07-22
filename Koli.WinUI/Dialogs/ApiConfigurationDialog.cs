@@ -20,6 +20,7 @@ public sealed class ApiConfigurationDialog : ContentDialog
     private readonly TextBlock _modelLabel;
     private readonly ComboBox _modelBox;
     private readonly TextBox _providerIdBox;
+    private readonly CheckBox _noLogCheckBox;
     private readonly StackPanel _onPremStreamingPanel;
     private readonly CheckBox _enableStreamingCheckBox;
     private readonly TextBox _streamingEndpointBox;
@@ -156,6 +157,14 @@ public sealed class ApiConfigurationDialog : ContentDialog
         };
         panel.Children.Add(_providerIdBox);
 
+        _noLogCheckBox = new CheckBox
+        {
+            Content = "Do not log requests in AI Nexus (noLog)",
+            IsChecked = settings.NoLog,
+            Visibility = isOnPrem ? Visibility.Visible : Visibility.Collapsed
+        };
+        panel.Children.Add(_noLogCheckBox);
+
         _enableStreamingCheckBox = new CheckBox
         {
             Content = "Live transcription (WebSocket realtime/transcribe)",
@@ -221,6 +230,7 @@ public sealed class ApiConfigurationDialog : ContentDialog
                 _settings.ProviderId = providerId;
             else
                 _settings.ProviderId = null;
+            _settings.NoLog = _noLogCheckBox.IsChecked == true;
             _settings.EnableStreamingTranscription = _enableStreamingCheckBox.IsChecked == true;
             _settings.RealtimeEndpoint = realtimeEndpointBox.Text.Trim();
             _settings.UseQueryAudioHttpStreamingFallback = httpFallbackCheckBox.IsChecked == true;
@@ -265,6 +275,7 @@ public sealed class ApiConfigurationDialog : ContentDialog
         _modelLabel.Visibility = onPrem ? Visibility.Collapsed : Visibility.Visible;
         _modelBox.Visibility = onPrem ? Visibility.Collapsed : Visibility.Visible;
         _providerIdBox.Header = onPrem ? "Provider ID" : "Provider ID (on-prem, optional)";
+        _noLogCheckBox.Visibility = onPrem ? Visibility.Visible : Visibility.Collapsed;
         // Keep advanced streaming options hidden; re-enable Visibility here when exposing them again.
         _onPremStreamingPanel.Visibility = Visibility.Collapsed;
         if (onPrem)

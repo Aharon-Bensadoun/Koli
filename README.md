@@ -187,6 +187,7 @@ All settings live in `Config/appsettings.json`. The file is structured into the 
 | `TranscriptionPromptId` | int? | `null` | *On-premise only.* Prompt template ID for transcription. |
 | `FormattingPromptId` | int? | `null` | *On-premise only.* Prompt template ID for post-transcription formatting. |
 | `EnableSpeakerDiarization` | bool | `false` | *On-premise only.* Enable speaker diarization on the server side. |
+| `NoLog` | bool | `false` | *Ai Nexus on-premise only.* When `true`, sends multipart/WebSocket field `noLog` so the request is not logged in the project. |
 | `EnableStreamingTranscription` | bool | `false` | *On-premise only.* When `true`, use WebSocket live STT (`/api/ai/realtime/transcribe`) in meeting and dictation (see [On-prem live transcription](#on-prem-live-transcription-ai-nexus)). |
 | `RealtimeEndpoint` | string | `""` | *On-prem only.* Optional `wss://…/api/ai/realtime/transcribe` URL; empty derives from `Endpoint`. |
 | `UseQueryAudioHttpStreamingFallback` | bool | `false` | *On-prem only.* If WebSocket connect fails, fall back to rolling `queryAudio` HTTP streaming. |
@@ -205,7 +206,7 @@ When `Endpoint` does not contain `openai.com` and `EnableStreamingTranscription`
 
 - **URL**: `wss://{host}/api/ai/realtime/transcribe` (derived from `Endpoint`, or set `RealtimeEndpoint` explicitly).
 - **Auth**: `x-api-key` header at handshake (same key as batch `queryAudio`).
-- **Protocol**: JSON messages — `start` (`providerId`, `language` / `auto`, `externalUser`), `audio` (base64 PCM16 mono **24 kHz**), `stop`; server sends `session_ready`, `partial`, `final`, `error`, `done`.
+- **Protocol**: JSON messages — `start` (`providerId`, `language` / `auto`, `externalUser`, `noLog`), `audio` (base64 PCM16 mono **24 kHz**), `stop`; server sends `session_ready`, `partial`, `final`, `error`, `done`.
 - **Capture**: microphone PCM at 16 kHz, resampled to 24 kHz before send (~100 ms chunks).
 
 Enable the toggle in **Settings → API configuration** when an on-prem endpoint is configured, or set `EnableStreamingTranscription` in `appsettings.json`. **Meeting** and **dictation (Home)** both use this live path when enabled.
@@ -239,7 +240,7 @@ Set `Endpoint` to your Azure resource endpoint (host must contain `openai.com`):
 
 If `Endpoint` is set to a URL that does **not** contain `openai.com`, the application automatically switches to the on-premise protocol:
 
-- **Request**: multipart POST to the configured URL with an `x-api-key` header and form fields: WAV audio file, `language`, `transcriptionPromptId`, `formattingPromptId`, `enableSpeakerDiarization`, `externalUser`, `providerId`, etc.
+- **Request**: multipart POST to the configured URL with an `x-api-key` header and form fields: WAV audio file, `language`, `transcriptionPromptId`, `formattingPromptId`, `enableSpeakerDiarization`, `noLog`, `externalUser`, `providerId`, etc.
 - **Response**: JSON `{ "Success": true, "Content": "transcribed text", "ErrorMessage": null }`.
 
 ```json
@@ -249,6 +250,7 @@ If `Endpoint` is set to a URL that does **not** contain `openai.com`, the applic
   "TranscriptionPromptId": 11,
   "FormattingPromptId": 9,
   "EnableSpeakerDiarization": false,
+  "NoLog": false,
   "EnableStreamingTranscription": true,
   "RealtimeEndpoint": "",
   "UseQueryAudioHttpStreamingFallback": false,

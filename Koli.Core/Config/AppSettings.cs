@@ -119,6 +119,8 @@ public sealed class AzureOpenAISettings
     public int? TranscriptionPromptId { get; set; }
     public int? FormattingPromptId { get; set; }
     public bool EnableSpeakerDiarization { get; set; } = false;
+    /// <summary>Ai Nexus on-prem: when true, send multipart/WebSocket field <c>noLog</c> so the request is not logged in the project.</summary>
+    public bool NoLog { get; set; } = false;
     /// <summary>On-prem: when true, use live transcription (Ai Nexus WebSocket <c>/api/ai/realtime/transcribe</c>, or HTTP fallback if enabled).</summary>
     public bool EnableStreamingTranscription { get; set; } = false;
     /// <summary>On-prem HTTP streaming URL (<c>queryAudio</c> + <c>stream=true</c>); empty uses <see cref="Endpoint"/>.</summary>

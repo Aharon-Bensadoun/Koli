@@ -730,6 +730,7 @@ public sealed partial class HomeViewModel : ObservableObject, IDisposable
             TranscriptionPromptId = source.TranscriptionPromptId,
             FormattingPromptId = null,
             EnableSpeakerDiarization = false,
+            NoLog = source.NoLog,
             EnableStreamingTranscription = false,
             StreamingEndpoint = source.StreamingEndpoint,
             StreamingProviderId = source.StreamingProviderId,

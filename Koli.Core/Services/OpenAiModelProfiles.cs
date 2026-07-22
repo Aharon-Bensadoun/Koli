@@ -247,6 +247,7 @@ public static class OpenAiModelProfiles
         TranscriptionPromptId = source.TranscriptionPromptId,
         FormattingPromptId = source.FormattingPromptId,
         EnableSpeakerDiarization = source.EnableSpeakerDiarization,
+        NoLog = source.NoLog,
         EnableStreamingTranscription = source.EnableStreamingTranscription,
         StreamingEndpoint = source.StreamingEndpoint,
         StreamingProviderId = source.StreamingProviderId,

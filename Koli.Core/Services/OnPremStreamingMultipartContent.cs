@@ -7,7 +7,7 @@ namespace Koli.Services;
 /// <summary>
 /// Builds on-prem <c>queryAudio</c> multipart bodies with the same fields as batch mode.
 /// API assumption: POST multipart with <c>stream=true</c> plus language, providerId,
-/// transcriptionPromptId, formattingPromptId, enableSpeakerDiarization, externalUser, projectId.
+/// transcriptionPromptId, formattingPromptId, enableSpeakerDiarization, noLog, externalUser, projectId.
 /// </summary>
 internal static class OnPremStreamingMultipartContent
 {
@@ -40,6 +40,7 @@ internal static class OnPremStreamingMultipartContent
         content.Add(new StringContent(providerId?.ToString(CultureInfo.InvariantCulture) ?? ""), "providerId");
         content.Add(new StringContent(stream ? "true" : "false"), "stream");
         content.Add(new StringContent(settings.EnableSpeakerDiarization ? "true" : "false"), "enableSpeakerDiarization");
+        content.Add(new StringContent(settings.NoLog ? "true" : "false"), "noLog");
         content.Add(new StringContent(Environment.UserName), "externalUser");
 
         return content;

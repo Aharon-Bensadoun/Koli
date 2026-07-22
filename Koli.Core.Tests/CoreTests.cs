@@ -474,6 +474,19 @@ public class OpenAiModelProfilesTests
         Assert.Contains("\"type\":\"start\"", json, StringComparison.Ordinal);
         Assert.Contains("\"providerId\":12", json, StringComparison.Ordinal);
         Assert.Contains("\"language\":\"auto\"", json, StringComparison.Ordinal);
+        Assert.Contains("\"noLog\":false", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void OnPremRealtime_BuildStartMessage_IncludesNoLogWhenEnabled()
+    {
+        var settings = new AzureOpenAISettings
+        {
+            ProviderId = 12,
+            NoLog = true
+        };
+        var json = OnPremRealtimeTranscriptionSession.BuildStartMessage(settings, "en");
+        Assert.Contains("\"noLog\":true", json, StringComparison.Ordinal);
     }
 }
 
