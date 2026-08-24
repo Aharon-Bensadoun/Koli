@@ -545,6 +545,39 @@ public class OnPremStreamingResponseParserTests
     }
 }
 
+public class OnPremBatchTranscriptionParserTests
+{
+    [Fact]
+    public void ParseOnPremiseTranscription_AcceptsNumericProviderFromQueryAudio()
+    {
+        const string json = """
+            {
+              "success": true,
+              "content": "Test.",
+              "errorMessage": null,
+              "provider": 1,
+              "providerId": 6,
+              "executionDuration": "00:00:01.0624841",
+              "metadata": null,
+              "requestId": 17668,
+              "inputTokens": 13,
+              "outputTokens": 4,
+              "audioDuration": 1.3980625,
+              "systemPrompt": null
+            }
+            """;
+
+        var result = SpeechToTextService.ParseOnPremiseTranscription(json);
+
+        Assert.NotNull(result);
+        Assert.True(result!.Success);
+        Assert.Equal("Test.", result.Content);
+        Assert.Equal(1, result.Provider);
+        Assert.Equal(6, result.ProviderId);
+        Assert.Null(result.ErrorMessage);
+    }
+}
+
 public class TranscriptionOutputLanguageServiceTests
 {
     [Theory]

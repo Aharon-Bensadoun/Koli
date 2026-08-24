@@ -551,7 +551,7 @@ public sealed class SpeechToTextService : IAsyncDisposable
                 var errorMsg = $"Server error {(int)response.StatusCode}: {response.ReasonPhrase}";
                 try
                 {
-                    var err = JsonSerializer.Deserialize<PersonalApiTranscriptionResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                    var err = ParseOnPremiseTranscription(responseBody);
                     if (!string.IsNullOrWhiteSpace(err?.ErrorMessage))
                         errorMsg = $"Server error: {err.ErrorMessage}";
                 }
@@ -564,7 +564,7 @@ public sealed class SpeechToTextService : IAsyncDisposable
                 return;
             }
 
-            var transcriptionResponse = JsonSerializer.Deserialize<PersonalApiTranscriptionResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+            var transcriptionResponse = ParseOnPremiseTranscription(responseBody);
             if (transcriptionResponse?.Success == true && !string.IsNullOrWhiteSpace(transcriptionResponse.Content))
                 EmitTranscriptionIfValid(transcriptionResponse.Content);
             else if (transcriptionResponse?.Success == false)
@@ -763,7 +763,7 @@ public sealed class SpeechToTextService : IAsyncDisposable
         if (!response.IsSuccessStatusCode)
             return null;
 
-        var result = JsonSerializer.Deserialize<PersonalApiTranscriptionResponse>(responseBody, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        var result = ParseOnPremiseTranscription(responseBody);
         if (result?.Success == true && !string.IsNullOrWhiteSpace(result.Content))
             return result.Content;
 
@@ -819,11 +819,22 @@ public sealed class SpeechToTextService : IAsyncDisposable
     }
 
     private sealed record OpenAITranscriptionResponse(string? Text);
-    private sealed record PersonalApiTranscriptionResponse(
+
+    /// <summary>Deserializes an Ai Nexus <c>queryAudio</c> batch response. <c>provider</c> is a numeric enum.</summary>
+    public static PersonalApiTranscriptionResponse? ParseOnPremiseTranscription(string json)
+    {
+        if (string.IsNullOrWhiteSpace(json))
+            return null;
+        return JsonSerializer.Deserialize<PersonalApiTranscriptionResponse>(json, OnPremiseJsonOptions);
+    }
+
+    private static readonly JsonSerializerOptions OnPremiseJsonOptions = new() { PropertyNameCaseInsensitive = true };
+
+    public sealed record PersonalApiTranscriptionResponse(
         bool Success,
         string? Content,
         string? ErrorMessage,
-        string? Provider,
+        int? Provider,
         int? ProviderId,
         string? ExecutionDuration,
         object? Metadata,
