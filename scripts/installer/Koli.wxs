@@ -9,9 +9,26 @@
            UpgradeCode="A1B2C3D4-E5F6-7890-ABCD-EF1234567890"
            Scope="perMachine"
            Language="1033">
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Koli is already installed."
-                  AllowSameVersionUpgrades="yes" />
+    <!-- Always replace any previously installed Koli MSI (older, same, or newer).
+         Windows Installer ignores the 4th version field, so 1.0.7.5 and 1.0.7.6
+         look identical; AllowDowngrades treats that as an upgrade instead of a
+         second side-by-side product. afterInstallInitialize removes the old
+         product before copying files, so overwrite does not depend on file versions. -->
+    <MajorUpgrade AllowDowngrades="yes"
+                  Schedule="afterInstallInitialize" />
     <MediaTemplate EmbedCab="yes" />
+
+    <!-- Same MSI file (same ProductCode): overwrite every file instead of Repair. -->
+    <SetProperty Id="REINSTALL"
+                 Value="ALL"
+                 After="FindRelatedProducts"
+                 Sequence="both"
+                 Condition="Installed AND NOT REMOVE AND NOT UPGRADINGPRODUCTCODE AND NOT WIX_UPGRADE_DETECTED" />
+    <SetProperty Id="REINSTALLMODE"
+                 Value="amus"
+                 After="SetREINSTALL"
+                 Sequence="both"
+                 Condition="Installed AND NOT REMOVE AND NOT UPGRADINGPRODUCTCODE AND NOT WIX_UPGRADE_DETECTED" />
 
     <Property Id="KOLI_API_KEY" Hidden="yes" Secure="yes" />
     <Property Id="KOLI_ENDPOINT" Secure="yes" />

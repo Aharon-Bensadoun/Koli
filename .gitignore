@@ -157,3 +157,5 @@ $RECYCLE.BIN/
 
 # claude
 .claude/
+
+commands.ps1

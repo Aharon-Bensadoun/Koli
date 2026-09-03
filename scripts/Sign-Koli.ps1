@@ -1,8 +1,8 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Signs Koli binaries (EXE) and/or the MSI installer with an Authenticode code-signing
-    certificate from the current user's personal certificate store (Cert:\CurrentUser\My).
+    Signs Koli binaries (EXE, DLL, ...) and/or the MSI installer with an Authenticode
+    code-signing certificate from the current user's personal store (Cert:\CurrentUser\My).
 
 .DESCRIPTION
     Uses signtool.exe (from the Windows SDK) when available, and falls back to
@@ -13,9 +13,14 @@
     in Windows comes from the certificate's Subject (CN), so make sure the CA-issued
     certificate has the correct company common name.
 
+    When a directory is passed, every unsigned .exe / .dll / .msi under it is signed.
+    Files that already have a valid Authenticode signature (for example Microsoft
+    runtime DLLs) are left untouched unless -Force is set.
+
 .PARAMETER Path
-    One or more files to sign (EXE, DLL, MSI, ...). Wildcards are supported.
-    If omitted, the script auto-discovers the published Koli.exe and the MSI in dist.
+    One or more files or directories to sign. Wildcards are supported.
+    Directories are scanned recursively for signable binaries.
+    If omitted, the script auto-discovers the published binaries and the latest MSI in dist.
 
 .PARAMETER Thumbprint
     SHA-1 thumbprint of the code-signing certificate in Cert:\CurrentUser\My.
@@ -23,27 +28,36 @@
 .PARAMETER TimestampServer
     RFC 3161 timestamp server URL.
 
+.PARAMETER Force
+    Re-sign files even if they already have a valid Authenticode signature.
+
 .EXAMPLE
     .\scripts\Sign-Koli.ps1
-    Auto-discovers and signs the published Koli.exe and the latest MSI.
+    Auto-discovers and signs unsigned published binaries and the latest MSI.
+
+.EXAMPLE
+    .\scripts\Sign-Koli.ps1 -Path .\Koli.WinUI\bin\Release\net8.0-windows10.0.22621.0\win-x64\publish
 
 .EXAMPLE
     .\scripts\Sign-Koli.ps1 -Path .\Koli.WinUI\dist\Koli_1.0.0.0_x64.msi
 
 .EXAMPLE
-    .\scripts\Sign-Koli.ps1 -Path .\path\to\app.exe, .\path\to\installer.msi
+    .\scripts\Sign-Koli.ps1 -Path .\path\to\app.exe, .\path\to\installer.msi -Thumbprint 250ef3d5376f8c880c94d48981d0b3df2f9a0345
 #>
 [CmdletBinding()]
 param(
     [string[]]$Path,
     [string]$Thumbprint = '250ef3d5376f8c880c94d48981d0b3df2f9a0345',
-    [string]$TimestampServer = 'http://timestamp.digicert.com'
+    [string]$TimestampServer = 'http://timestamp.digicert.com',
+    [switch]$Force
 )
 
 $ErrorActionPreference = 'Stop'
 
 $RepoRoot = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 $DistPath = Join-Path $RepoRoot 'Koli.WinUI\dist'
+$SignableExtensions = @('.exe', '.dll', '.msi', '.cab', '.ocx', '.sys')
+$SignToolBatchSize = 20
 
 function Get-SigningCertificate {
     param([string]$Thumbprint)
@@ -88,43 +102,114 @@ function Find-SignTool {
     return $null
 }
 
+function Test-SignableExtension {
+    param([string]$FilePath)
+
+    $ext = [IO.Path]::GetExtension($FilePath)
+    return $SignableExtensions -contains $ext.ToLowerInvariant()
+}
+
+function Get-PublishDirectory {
+    $publishDir = Get-ChildItem -Path (Join-Path $RepoRoot 'Koli.WinUI\bin') -Recurse -Directory -Filter 'publish' -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path (Join-Path $_.FullName 'Koli.exe') } |
+        Sort-Object LastWriteTime -Descending |
+        Select-Object -First 1
+
+    if ($publishDir) {
+        return $publishDir.FullName
+    }
+
+    return $null
+}
+
+function Get-SignableFilesFromDirectory {
+    param([string]$Directory)
+
+    return @(
+        Get-ChildItem -Path $Directory -Recurse -File -ErrorAction SilentlyContinue |
+            Where-Object { Test-SignableExtension -FilePath $_.FullName } |
+            ForEach-Object { $_.FullName }
+    )
+}
+
+function Select-FilesToSign {
+    param(
+        [string[]]$Files,
+        [switch]$Force
+    )
+
+    $selected = @()
+    $skipped = 0
+
+    foreach ($file in ($Files | Sort-Object -Unique)) {
+        if (-not (Test-Path -LiteralPath $file -PathType Leaf)) {
+            continue
+        }
+
+        if (-not $Force) {
+            $sig = Get-AuthenticodeSignature -FilePath $file
+            if ($sig.Status -eq 'Valid') {
+                $skipped += 1
+                continue
+            }
+        }
+
+        $selected += $file
+    }
+
+    return [pscustomobject]@{
+        Files   = $selected
+        Skipped = $skipped
+    }
+}
+
 function Resolve-Targets {
     param([string[]]$Path)
 
+    $resolved = @()
+
     if ($Path) {
-        $resolved = @()
         foreach ($p in $Path) {
             $matches = Resolve-Path -Path $p -ErrorAction SilentlyContinue
             if (-not $matches) {
                 Write-Warning "No file matched: $p"
                 continue
             }
-            $resolved += $matches.Path
+
+            foreach ($match in $matches) {
+                if (Test-Path -LiteralPath $match.Path -PathType Container) {
+                    $resolved += Get-SignableFilesFromDirectory -Directory $match.Path
+                }
+                elseif (Test-SignableExtension -FilePath $match.Path) {
+                    $resolved += $match.Path
+                }
+                else {
+                    Write-Warning "Skipping unsupported file type: $($match.Path)"
+                }
+            }
         }
-        return $resolved | Sort-Object -Unique
+
+        return @($resolved | Sort-Object -Unique)
     }
 
-    # Auto-discovery
-    $targets = @()
-
-    $publishExe = Get-ChildItem -Path (Join-Path $RepoRoot 'Koli.WinUI\bin') -Recurse -Filter 'Koli.exe' -ErrorAction SilentlyContinue |
-        Where-Object { $_.DirectoryName -match '\\publish$' } |
-        Sort-Object LastWriteTime -Descending |
-        Select-Object -First 1
-    if ($publishExe) { $targets += $publishExe.FullName }
+    $publishDir = Get-PublishDirectory
+    if ($publishDir) {
+        $resolved += Get-SignableFilesFromDirectory -Directory $publishDir
+    }
 
     if (Test-Path $DistPath) {
         $msi = Get-ChildItem -Path $DistPath -Filter '*.msi' -ErrorAction SilentlyContinue |
             Sort-Object LastWriteTime -Descending |
             Select-Object -First 1
-        if ($msi) { $targets += $msi.FullName }
+        if ($msi) { $resolved += $msi.FullName }
     }
 
-    if (-not $targets) {
+    $resolved = @($resolved | Sort-Object -Unique)
+    if (-not $resolved) {
         throw "No files to sign were found. Publish first, or pass -Path explicitly."
     }
 
-    return $targets | Sort-Object -Unique
+    return $resolved
 }
 
 function Invoke-SignToolSign {
@@ -135,18 +220,23 @@ function Invoke-SignToolSign {
         [string[]]$Files
     )
 
-    $signArgs = @(
-        'sign',
-        '/sha1', $Thumbprint,
-        '/fd', 'SHA256',
-        '/tr', $TimestampServer,
-        '/td', 'SHA256'
-    ) + $Files
+    for ($i = 0; $i -lt $Files.Count; $i += $SignToolBatchSize) {
+        $end = [Math]::Min($i + $SignToolBatchSize - 1, $Files.Count - 1)
+        $batch = @($Files[$i..$end])
 
-    Write-Host "signtool $($signArgs -join ' ')"
-    & $SignTool @signArgs
-    if ($LASTEXITCODE -ne 0) {
-        throw "signtool failed with exit code $LASTEXITCODE."
+        $signArgs = @(
+            'sign',
+            '/sha1', $Thumbprint,
+            '/fd', 'SHA256',
+            '/tr', $TimestampServer,
+            '/td', 'SHA256'
+        ) + $batch
+
+        Write-Host "signtool sign ($($batch.Count) file(s), batch $([int]($i / $SignToolBatchSize) + 1))"
+        & $SignTool @signArgs
+        if ($LASTEXITCODE -ne 0) {
+            throw "signtool failed with exit code $LASTEXITCODE."
+        }
     }
 }
 
@@ -178,10 +268,22 @@ Write-Host "  Thumbprint : $cleanThumbprint"
 Write-Host "  Valid until: $($cert.NotAfter)"
 Write-Host ""
 
-$targets = Resolve-Targets -Path $Path
-Write-Host "Files to sign:"
+$candidates = Resolve-Targets -Path $Path
+$selection = Select-FilesToSign -Files $candidates -Force:$Force
+$targets = @($selection.Files)
+
+Write-Host "Signable files found: $($candidates.Count)"
+if ($selection.Skipped -gt 0) {
+    Write-Host "Already signed (skipped): $($selection.Skipped)"
+}
+Write-Host "Files to sign: $($targets.Count)"
 $targets | ForEach-Object { Write-Host "  $_" }
 Write-Host ""
+
+if (-not $targets) {
+    Write-Host "Nothing to sign."
+    return
+}
 
 $signTool = Find-SignTool
 if ($signTool) {

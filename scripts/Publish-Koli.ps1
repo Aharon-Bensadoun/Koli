@@ -1,7 +1,17 @@
 #Requires -Version 5.1
 <#
 .SYNOPSIS
-    Bumps the app version (optional), publishes Koli, and produces MSIX, MSI, or portable packages.
+    Bumps the app version (optional), publishes Koli, signs binaries, and produces
+    signed MSIX, MSI, or portable packages.
+
+.DESCRIPTION
+    For MSI and Portable: publishes the app, Authenticode-signs every unsigned binary
+    (.exe, .dll, ...) in the publish folder, then builds the package. The MSI is signed
+    after WiX builds it so the installer and the installed exe are both signed.
+
+    For MSIX: package signing stays on the project certificate (AppxPackageSigningEnabled).
+
+    Use -SkipSign to publish without Authenticode signing (MSI / Portable).
 
 .EXAMPLE
     .\scripts\Publish-Koli.ps1
@@ -26,6 +36,10 @@
 .EXAMPLE
     .\scripts\Publish-Koli.ps1 -Unpackaged
     Alias for -Target Portable.
+
+.EXAMPLE
+    .\scripts\Publish-Koli.ps1 -Target Msi -SkipSign
+    Publish the MSI without Authenticode signing.
 #>
 [CmdletBinding()]
 param(
@@ -36,7 +50,10 @@ param(
     [ValidateSet('Msix', 'Msi', 'Portable')]
     [string]$Target = 'Msix',
     [switch]$Unpackaged,
-    [switch]$WithoutMeeting
+    [switch]$WithoutMeeting,
+    [switch]$SkipSign,
+    [string]$Thumbprint = '250ef3d5376f8c880c94d48981d0b3df2f9a0345',
+    [string]$TimestampServer = 'http://timestamp.digicert.com'
 )
 
 $ErrorActionPreference = 'Stop'
@@ -253,8 +270,27 @@ function New-KoliMsi {
 
     Copy-Item -LiteralPath (Join-Path $InstallerDir 'Install-KoliMsi.ps1') `
         -Destination (Join-Path $DistPath 'Install-KoliMsi.ps1') -Force
+    Copy-Item -LiteralPath (Join-Path $InstallerDir 'Install-Koli.cmd') `
+        -Destination (Join-Path $DistPath 'Install-Koli.cmd') -Force
 
     return $msiPath
+}
+
+function Invoke-KoliSign {
+    param([Parameter(Mandatory = $true)][string[]]$Path)
+
+    if ($SkipSign) {
+        return
+    }
+
+    $signScript = Join-Path $PSScriptRoot 'Sign-Koli.ps1'
+    if (-not (Test-Path -LiteralPath $signScript)) {
+        throw "Missing signing script: $signScript"
+    }
+
+    Write-Host ""
+    Write-Host "Signing: $($Path -join ', ')"
+    & $signScript -Path $Path -Thumbprint $Thumbprint -TimestampServer $TimestampServer
 }
 
 $currentVersion = Get-KoliVersion
@@ -293,6 +329,9 @@ if ($Target -eq 'Msix') {
 
 Write-Host "Target: $Target"
 Write-Host "Meeting feature: $(-not $WithoutMeeting)"
+if ($SkipSign -and $Target -ne 'Msix') {
+    Write-Host "Authenticode signing: skipped"
+}
 Write-Host "Running: dotnet $($publishArgs -join ' ')"
 & dotnet @publishArgs
 if ($LASTEXITCODE -ne 0) {
@@ -344,6 +383,7 @@ switch ($Target) {
 
     'Portable' {
         $publishDir = Get-KoliPublishDir
+        Invoke-KoliSign -Path $publishDir
         $zipPath = New-KoliPortableZip -PublishDir $publishDir -AppVersion $targetVersion
         Write-Host ""
         Write-Host "Portable zip: $zipPath"
@@ -352,7 +392,9 @@ switch ($Target) {
 
     'Msi' {
         $publishDir = Get-KoliPublishDir
+        Invoke-KoliSign -Path $publishDir
         $msiPath = New-KoliMsi -PublishDir $publishDir -AppVersion $targetVersion
+        Invoke-KoliSign -Path $msiPath
         Write-Host ""
         Write-Host "MSI installer: $msiPath"
     }

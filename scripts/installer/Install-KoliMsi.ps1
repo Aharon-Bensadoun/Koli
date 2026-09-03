@@ -19,6 +19,35 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+function Test-KoliAdmin {
+    $identity = [Security.Principal.WindowsIdentity]::GetCurrent()
+    $principal = [Security.Principal.WindowsPrincipal]$identity
+    return $principal.IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+}
+
+function Request-KoliAdmin {
+    param([System.Collections.IDictionary]$BoundParameters)
+
+    $argList = @(
+        '-NoProfile',
+        '-ExecutionPolicy', 'Bypass',
+        '-File', $PSCommandPath
+    )
+    foreach ($key in $BoundParameters.Keys) {
+        $value = $BoundParameters[$key]
+        if ($value -is [switch]) {
+            if ($value) { $argList += "-$key" }
+        }
+        else {
+            $argList += "-$key"
+            $argList += "$value"
+        }
+    }
+
+    $process = Start-Process -FilePath 'powershell.exe' -Verb RunAs -ArgumentList $argList -Wait -PassThru
+    exit $process.ExitCode
+}
+
 function Show-KoliMsiHelp {
     @'
 Koli MSI command-line installer
@@ -69,6 +98,10 @@ function ConvertTo-MsiPropertyArgument {
 if ($Help) {
     Show-KoliMsiHelp
     exit 0
+}
+
+if (-not (Test-KoliAdmin)) {
+    Request-KoliAdmin -BoundParameters $PSBoundParameters
 }
 
 if (-not $MsiPath) {
